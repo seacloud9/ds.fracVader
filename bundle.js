@@ -14,10 +14,10 @@ window.game = createGame({
       chunkSize: 32,
       worldOrigin: [0, 0, 0],
       //gravity: [0,0,0],
-      generate: function(x, y, z) {
+      /*generate: function(x, y, z) {
             return y === 1 ? 1 : 0
-      },
-      //generateChunks: false,
+      },*/
+      generateChunks: false,
       texturePath: 'textures/',
       controls: { discreteFire: false },
       materials: [['glass2'], 'brick', 'dirt', 'obsidian']
@@ -156,7 +156,7 @@ creature.position.x = 0;
 creature.position.z = -30;
 
 postprocessor = voxelpp(game);
-var bS = new postprocessor.EffectComposer.BloomPass( 9.25, 25, 1.0, 512 );
+var bS = new postprocessor.EffectComposer.BloomPass( 9.25, 2, 0.0001, 1024 );
 var fS = new postprocessor.EffectComposer.FilmPass( 0.35, 0.95, 2048, false );
 fS.renderToScreen = true
 postprocessor.addPass( bS );
@@ -195,6 +195,9 @@ setInterval(function () {
 
 
 $(function(){
+/*  $('#cockpit').height($('body').height());
+  $('#cockpit').width($('body').width());
+  $('#cockpit').show();*/
     var starTunnel = {
             positionStyle  : Type.CUBE,
             positionBase   : new window.game.THREE.Vector3( 0, 5, -10 ),

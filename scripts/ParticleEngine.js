@@ -71,11 +71,25 @@ Tween.prototype.lerp = function(t)
 {
 	var i = 0;
 	var n = this.times.length;
+
+	//http://www.html5rocks.com/en/tutorials/workers/basics/
+	var worker = new Worker('particleworker.js');
+	worker.addEventListener('lerp', function(e) {
+	  	 if (e.data.tweenValues[0] instanceof window.game.THREE.Vector3)
+				return this.values[e.data.i-1].clone().lerp( e.data.tweenValues[e.data.i], e.data.p );
+		 else // its a float
+			return e.data.tweenValues[e.data.i-1] + e.data.p * (e.data.tweenValues[i] - e.data.tweenValues[e.data.i-1]);
+	}, false);
+
+	worker.postMessage({i:0,time:t,n:this.times.length, tweenTimer:this.times, tweenValues:this.values, p:0});
+
+	/*
 	while (i < n && t > this.times[i])  
 		i++;
 	if (i == 0) return this.values[0];
 	if (i == n)	return this.values[n-1];
 	var p = (t - this.times[i-1]) / (this.times[i] - this.times[i-1]);
+	*/
 	if (this.values[0] instanceof window.game.THREE.Vector3)
 		return this.values[i-1].clone().lerp( this.values[i], p );
 	else // its a float
