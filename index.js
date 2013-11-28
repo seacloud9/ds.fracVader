@@ -21,10 +21,11 @@ window.game = createGame({
       controls: { discreteFire: false },
       materials: [['glass2'], 'brick', 'dirt', 'obsidian']
 });
+var critterCreator = require('voxel-critter')(game);
 clock = new game.THREE.Clock();
 window.game.view.renderer.autoClear = true;
 game.tic = tic;
-game.scene.fog.far = 1500;
+game.scene.fog.far = 90000;
 game.gravity = [0,0,0];
 //var terrainGenerator = perlinTerrain('abc123', 0, 5)
 game.paused = false
@@ -42,14 +43,7 @@ game.voxels.on('missingChunk', function(chunkPosition) {
 })
 */
 //game.tic = tic;
-var createPlayer = require('voxel-player')(game);
-player = createPlayer('textures/substack.png');
-player.yaw.position.set(0, 2, 0);
-player.position.y = 10;
-player.subjectTo([0,0,0]);
-//player.friction = new game.THREE.Vector3(1, 1, 10);
-//player.move([0,0,-0.000005]);
-player.possess();
+
 game.appendTo('#container');
 
 window.addEventListener('keydown', function (ev) {
@@ -235,5 +229,50 @@ $(function(){
       postprocessor.composer.render( 0.01 );
       //console.log("-wtf" + dt);
     });
+    var hellcat = new Image();
+    hellcat.onload = function() {
+      hellcatMod = critterCreator(hellcat);
+      //hellcatMod.position.y = 10;
+      hellcatMod.children[0].visibile = false;
+      
+      game.scene.add(hellcatMod);
+      var createPlayer = require('voxel-player')(game);
+      player = createPlayer('textures/substack.png');
+      //player.playerSkin.head = hellcatMod.children[0];
+      //player.playerSkin.head = hellcatMod;
+      player.playerSkin.body.visible = false;
+      player.playerSkin.rightArm.visible = false;
+      player.playerSkin.rightLeg.visible = false;
+      player.playerSkin.leftArm.visible = false;
+      player.playerSkin.leftLeg.visible = false;
+      player.playerSkin.head = hellcatMod.children[0];
+      player.yaw.position.set(0, 2, 0);
+      var myMat = new game.THREE.MeshLambertMaterial({
+            color: 0x800830,
+            ambient: 0x800830
+        });
+      //hellcatMod.position.y = 40;
+      //hellcatMod.position.z = 90;
+      //player.avatar.add(hellcatMod);
+      //hellcatMod.position.y = 25;
+      //hellcatMod.position.z = 99;
+      hellcatMod.children[0].material = myMat;
+      hellcatMod.rotation.y = -1.56;
+      hellcatMod.rotation.z = 1.6;
+      hellcatMod.children[0].visibile = true;
+      hellcatMod.position.y= 11;
+      hellcatMod.position.z = 1;
+      player.position.y = 10;
+
+      player.subjectTo([0,0,0]);
+      //player.friction = new game.THREE.Vector3(1, 1, 10);
+      //player.move([0,0,-0.000005]);
+      player.possess();
+       
+
+    }
+    hellcat.src = 'images/hellcat2.png';
+
+
 });
 
