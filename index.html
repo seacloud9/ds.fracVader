@@ -17,12 +17,28 @@
 body{margin:0px; padding:0px;background-color: #000}
 #container{background-color: #000}
 #cockpit{width:100%; z-index: 999999; position: absolute; top: 0; left: 0; opacity: 0.4}
+#loader{float:left;height: 30px;width: 100%;}
+#loadingFill{float: left; height:10px; background: #ff0084; /* Old browsers */
+background: -moz-linear-gradient(top,  #ff0084 0%, #ff0084 100%); /* FF3.6+ */
+background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,#ff0084), color-stop(100%,#ff0084)); /* Chrome,Safari4+ */
+background: -webkit-linear-gradient(top,  #ff0084 0%,#ff0084 100%); /* Chrome10+,Safari5.1+ */
+background: -o-linear-gradient(top,  #ff0084 0%,#ff0084 100%); /* Opera 11.10+ */
+background: -ms-linear-gradient(top,  #ff0084 0%,#ff0084 100%); /* IE10+ */
+background: linear-gradient(to bottom,  #ff0084 0%,#ff0084 100%); /* W3C */
+filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#ff0084', endColorstr='#ff0084',GradientType=0 ); /* IE6-9 */
+}
 </style>
-<script src="http://code.jquery.com/jquery-1.9.1.min.js"></script>
+<script type="text/javascript" src="scripts/tweenMax/src/minified/TimelineLite.min.js"></script>
+<script type="text/javascript" src="scripts/tweenMax/src/minified/easing/EasePack.min.js"></script>
+<script type="text/javascript" src="scripts/tweenMax/src/minified/TimelineMax.min.js"></script>
+<script type="text/javascript" src="scripts/tweenMax/src/minified/TweenMax.min.js"></script>
 <script src="scripts/PreloadJS/lib/preloadjs-0.4.0.min.js"></script>
 </head>
 <body>
-<div id="container"></div>
+<div id="loader">
+<div id="loadingFill"></div>
+</div>
+<div id="container" style="float:left; width:100%; display:none"></div>
 <script src="scripts/processing.js" type="text/javascript"></script>
 <div id="pContain" width="512" height="512" style="display:none"></div>
 <div id="pContain2" width="512" height="512" style="display:none"></div>
@@ -157,17 +173,29 @@ uniform vec2 uvScale;
 			}
 
 </script>
-<img src="images/cockpit1a.svg" id="cockpit" />
+<img src="images/cockpit1a.svg" id="cockpit" style="display:none" />
 
 <script type="text/javascript">
 function startFracVader(){
 	startFracVaders();
 }
-var preload = new createjs.LoadQueue();
+var preload = new createjs.LoadQueue(false);
 preload.addEventListener("fileload", handleFileComplete);
 preload.addEventListener("complete", startFracVader);
+preload.addEventListener("progress", handleOverallProgress);
+
+preload.loadFile("http://code.jquery.com/jquery-1.9.1.min.js");
 preload.loadFile('bundle.js');
 preload.loadFile('scripts/ParticleEngine.js');
+// Overall progress handler
+function handleOverallProgress(event) {
+	console.log('TOTAL: '+preload.progress);
+	var perc = preload.progress*100;
+	var lf = document.getElementById("loadingFill");
+	TweenMax.to(lf,0.2,{width:perc+'%'});
+			
+}
+
 function handleFileComplete(event) {
     document.body.appendChild(event.result);
 }

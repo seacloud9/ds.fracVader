@@ -259,7 +259,9 @@ startFracVaders = function(){
       //player.friction = new game.THREE.Vector3(1, 1, 10);
       //player.move([0,0,-0.000005]);
       player.possess();
-       
+      $('#loader').hide();
+      $('#container').fadeIn("fast");
+      $('#cockpit').fadeIn("fast");
 
     }
     hellcat.src = 'images/hellcat2.png';
