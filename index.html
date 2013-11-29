@@ -19,6 +19,7 @@ body{margin:0px; padding:0px;background-color: #000}
 #cockpit{width:100%; z-index: 999999; position: absolute; top: 0; left: 0; opacity: 0.4}
 </style>
 <script src="http://code.jquery.com/jquery-1.9.1.min.js"></script>
+<script src="scripts/PreloadJS/lib/preloadjs-0.4.0.min.js"></script>
 </head>
 <body>
 <div id="container"></div>
@@ -157,7 +158,22 @@ uniform vec2 uvScale;
 
 </script>
 <img src="images/cockpit1a.svg" id="cockpit" />
-<script src="bundle.js"></script>
-<script src="scripts/ParticleEngine.js"></script>
+
+<script type="text/javascript">
+function startFracVader(){
+	startFracVaders();
+}
+var preload = new createjs.LoadQueue();
+preload.addEventListener("fileload", handleFileComplete);
+preload.addEventListener("complete", startFracVader);
+preload.loadFile('bundle.js');
+preload.loadFile('scripts/ParticleEngine.js');
+function handleFileComplete(event) {
+    document.body.appendChild(event.result);
+}
+
+
+</script>
+
 </body>
 </html>

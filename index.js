@@ -187,7 +187,8 @@ setInterval(function () {
 }, 1000);
 
 
-$(function(){
+startFracVaders = function(){
+
 /*  $('#cockpit').height($('body').height());
   $('#cockpit').width($('body').width());
   $('#cockpit').show();*/
@@ -232,38 +233,28 @@ $(function(){
     var hellcat = new Image();
     hellcat.onload = function() {
       hellcatMod = critterCreator(hellcat);
-      //hellcatMod.position.y = 10;
       hellcatMod.children[0].visibile = false;
-      
-      game.scene.add(hellcatMod);
       var createPlayer = require('voxel-player')(game);
       player = createPlayer('textures/substack.png');
-      //player.playerSkin.head = hellcatMod.children[0];
-      //player.playerSkin.head = hellcatMod;
       player.playerSkin.body.visible = false;
       player.playerSkin.rightArm.visible = false;
       player.playerSkin.rightLeg.visible = false;
       player.playerSkin.leftArm.visible = false;
       player.playerSkin.leftLeg.visible = false;
-      player.playerSkin.head = hellcatMod.children[0];
+      player.playerSkin.head.visible = false;
+      //player.playerSkin.head = hellcatMod.children[0];
       player.yaw.position.set(0, 2, 0);
       var myMat = new game.THREE.MeshLambertMaterial({
             color: 0x800830,
             ambient: 0x800830
         });
-      //hellcatMod.position.y = 40;
-      //hellcatMod.position.z = 90;
-      //player.avatar.add(hellcatMod);
-      //hellcatMod.position.y = 25;
-      //hellcatMod.position.z = 99;
+      player.avatar.head.add(hellcatMod);
       hellcatMod.children[0].material = myMat;
       hellcatMod.rotation.y = -1.56;
       hellcatMod.rotation.z = 1.6;
       hellcatMod.children[0].visibile = true;
-      hellcatMod.position.y= 11;
-      hellcatMod.position.z = 1;
-      player.position.y = 10;
-
+      hellcatMod.position.y = 1;
+      hellcatMod.position.z = 95;
       player.subjectTo([0,0,0]);
       //player.friction = new game.THREE.Vector3(1, 1, 10);
       //player.move([0,0,-0.000005]);
@@ -274,5 +265,5 @@ $(function(){
     hellcat.src = 'images/hellcat2.png';
 
 
-});
+};
 
