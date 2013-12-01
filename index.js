@@ -12,10 +12,6 @@ window.game = createGame({
       skyColor:0x000000,
       chunkSize: 32,
       worldOrigin: [0, 0, 0],
-      //gravity: [0,0,0],
-      /*generate: function(x, y, z) {
-            return y === 1 ? 1 : 0
-      },*/
       generateChunks: false,
       texturePath: 'textures/',
       controls: { discreteFire: false },
@@ -27,28 +23,20 @@ window.game.view.renderer.autoClear = true;
 game.tic = tic;
 game.scene.fog.far = 90000;
 game.gravity = [0,0,0];
-//var terrainGenerator = perlinTerrain('abc123', 0, 5)
 game.paused = false
 
-/*
-game.voxels.on('missingChunk', function(chunkPosition) {
-      var size = game.chunkSize
-      var voxels = terrainGenerator(chunkPosition, size)
-      var chunk = {
-        position: chunkPosition,
-        dims: [size, size, size],
-        voxels: voxels
-      }
-      game.showChunk(chunk)
-})
-*/
-//game.tic = tic;
 
 game.appendTo('#container');
 
 window.addEventListener('keydown', function (ev) {
     if (ev.keyCode === 'R'.charCodeAt(0)) {
         player.toggle();
+        var d = $('#cockpit').css('display');
+        if(d == 'block'){
+          $('#cockpit').hide();
+        }else{
+          $('#cockpit').show();
+        }
     }
 });
 
@@ -139,9 +127,6 @@ createInvader = function (game){
 };
 createCreature = require('voxel-creature')(game);
 cr = createInvader(game);
-//cr = createCr(game);
-//var bd = body.clone();
-//creature2 = createCreature(bd);
 creature = createCreature(cr);
 window.creature = creature;
 creature.position.y = 10;
@@ -188,10 +173,6 @@ setInterval(function () {
 
 
 startFracVaders = function(){
-
-/*  $('#cockpit').height($('body').height());
-  $('#cockpit').width($('body').width());
-  $('#cockpit').show();*/
     var starTunnel = {
             positionStyle  : Type.CUBE,
             positionBase   : new window.game.THREE.Vector3( 0, 5, -10 ),
@@ -228,7 +209,6 @@ startFracVaders = function(){
       window.game.engine.update( dt * 0.5 ); 
       window.game.view.renderer.clear();
       postprocessor.composer.render( 0.01 );
-      //console.log("-wtf" + dt);
     });
     var hellcat = new Image();
     hellcat.onload = function() {
@@ -242,7 +222,6 @@ startFracVaders = function(){
       player.playerSkin.leftArm.visible = false;
       player.playerSkin.leftLeg.visible = false;
       player.playerSkin.head.visible = false;
-      //player.playerSkin.head = hellcatMod.children[0];
       player.yaw.position.set(0, 2, 0);
       var myMat = new game.THREE.MeshLambertMaterial({
             color: 0x800830,
@@ -261,6 +240,7 @@ startFracVaders = function(){
       player.possess();
       $('#loader').hide();
       $('#container').fadeIn("fast");
+      $('#cockpit').css('bottom', '0px');
       $('#cockpit').fadeIn("fast");
 
     }

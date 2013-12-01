@@ -16,7 +16,7 @@
 <style>
 body{margin:0px; padding:0px;background-color: #000}
 #container{background-color: #000}
-#cockpit{width:100%; z-index: 999999; position: absolute; top: 0; left: 0; opacity: 0.4}
+#cockpit{width:100%; z-index: 999999; position: absolute; bottom: 0; left: 0; opacity: 0.4}
 #loader{float:left;height: 30px;width: 100%;}
 #loadingFill{float: left; height:10px; background: #ff0084; /* Old browsers */
 background: -moz-linear-gradient(top,  #ff0084 0%, #ff0084 100%); /* FF3.6+ */
@@ -26,6 +26,18 @@ background: -o-linear-gradient(top,  #ff0084 0%,#ff0084 100%); /* Opera 11.10+ *
 background: -ms-linear-gradient(top,  #ff0084 0%,#ff0084 100%); /* IE10+ */
 background: linear-gradient(to bottom,  #ff0084 0%,#ff0084 100%); /* W3C */
 filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#ff0084', endColorstr='#ff0084',GradientType=0 ); /* IE6-9 */
+}
+.unselectable {
+    /* For Opera and <= IE9, we need to add unselectable="on" attribute onto each element */
+    /* Check this site for more details: http://help.dottoro.com/lhwdpnva.php */
+    -moz-user-select: none; /* These user-select properties are inheritable, used to prevent text selection */
+    -webkit-user-select: none;
+    -ms-user-select: none; /* From IE10 only */
+    user-select: none; /* Not valid CSS yet, as of July 2012 */
+
+    -webkit-user-drag: none; /* Prevents dragging of images/divs etc */
+    user-drag: none;
+    pointer-events: none;
 }
 </style>
 <script type="text/javascript" src="scripts/tweenMax/src/minified/TimelineLite.min.js"></script>
@@ -173,7 +185,7 @@ uniform vec2 uvScale;
 			}
 
 </script>
-<img src="images/cockpit1a.svg" id="cockpit" style="display:none" />
+<img src="images/cockpit1a.svg" id="cockpit" class="unselectable" style="display:none" />
 
 <script type="text/javascript">
 function startFracVader(){
