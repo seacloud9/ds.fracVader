@@ -24,5 +24,8 @@ ds.fracVaders
 	 </p>
 </div>
 <div style="float:left; width:100%; margin-top:20px;">
+<img src="fracVaderIntro.jpg" style="float:left; width:100%"/>
+</div>
+<div style="float:left; width:100%; margin-top:20px;">
 <img src="fracVader.jpg" style="float:left; width:100%"/>
 </div>
