@@ -39,6 +39,9 @@ filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#ff0084', end
     user-drag: none;
     pointer-events: none;
 }
+#stats{
+	display: none;
+}
 </style>
 <script type="text/javascript" src="scripts/tweenMax/src/minified/TimelineLite.min.js"></script>
 <script type="text/javascript" src="scripts/tweenMax/src/minified/easing/EasePack.min.js"></script>
@@ -51,6 +54,7 @@ filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#ff0084', end
 <div id="loadingFill"></div>
 </div>
 <div id="container" style="float:left; width:100%; display:none"></div>
+<div id="phaser" style="float:left; width:100%; display:none"></div>
 <script src="scripts/processing.js" type="text/javascript"></script>
 <div id="pContain" width="512" height="512" style="display:none"></div>
 <div id="pContain2" width="512" height="512" style="display:none"></div>
@@ -189,7 +193,8 @@ uniform vec2 uvScale;
 
 <script type="text/javascript">
 function startFracVader(){
-	startFracVaders();
+	//startFracVaders();
+	startupScreen();
 }
 var preload = new createjs.LoadQueue(false);
 preload.addEventListener("fileload", handleFileComplete);
@@ -197,6 +202,8 @@ preload.addEventListener("complete", startFracVader);
 preload.addEventListener("progress", handleOverallProgress);
 
 preload.loadFile("http://code.jquery.com/jquery-1.9.1.min.js");
+preload.loadFile("scripts/phaser/build/phaser.min.js");
+preload.loadFile("intro.js");
 preload.loadFile('bundle.js');
 preload.loadFile('scripts/ParticleEngine.js');
 // Overall progress handler
