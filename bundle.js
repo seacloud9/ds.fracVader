@@ -243,6 +243,8 @@ startFracVaders = function(){
       $('#container').fadeIn("fast");
       $('#cockpit').css('bottom', '0px');
       $('#cockpit').fadeIn("fast");
+      $('#phaser').remove();
+      gameP = null;
 
     }
     hellcat.src = 'images/hellcat2.png';
