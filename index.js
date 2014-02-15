@@ -1,8 +1,5 @@
 var createGame = require('voxel-engine');
-//var perlinTerrain = require('voxel-perlin-terrain');
-//var tic = require('tic')();
 var tic = createGame.tick;
-//var voxel = require('voxel');
 voxelpp = require('voxel-pp');
 var importShaders = require('./scripts/shaders.js');
 
@@ -256,8 +253,7 @@ startFracVaders = function() {
         $('#cockpit').css('bottom', '0px');
         $('#cockpit').fadeIn("fast");
         $('#phaser').remove();
-        //delete Phaser;
-        gameP = null;
+        //gameP = null;
 
     }
     hellcat.src = 'images/hellcat2.png';
