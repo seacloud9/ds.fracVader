@@ -34,10 +34,13 @@ window.addEventListener('keydown', function(ev) {
     if (ev.keyCode === 'R'.charCodeAt(0)) {
         player.toggle();
         var d = $('#cockpit').css('display');
+
         if (d == 'block') {
             $('#cockpit').hide();
+            player.avatar.head.children[4].visible = true;
         } else {
             $('#cockpit').show();
+            player.avatar.head.children[4].visible = false;
         }
     }
 });
@@ -126,7 +129,7 @@ function createCreaures() {
         color: 0x800830,
         ambient: 0x800830
     }));
-    window.game.scene.add(groupM);
+    //window.game.scene.add(groupM);
     //exp
     creature = createCreature(cr);
     window.creature = creature;
@@ -177,6 +180,8 @@ onWindowResize = function(event) {
 window.addEventListener('resize', onWindowResize, false);
 
 startFracVaders = function() {
+    $('#logo').hide();
+    window.game.scene.remove(window.game.scene.__objects[1]);
     initPostProcess();
     canvasCallback = $.Callbacks();
     var starTunnel = {
@@ -224,7 +229,6 @@ startFracVaders = function() {
     var hellcat = new Image();
     hellcat.onload = function() {
         hellcatMod = critterCreator(hellcat);
-        hellcatMod.children[0].visibile = false;
         var createPlayer = require('voxel-player')(game);
         player = createPlayer('textures/substack.png');
         player.playerSkin.body.visible = false;
@@ -238,13 +242,14 @@ startFracVaders = function() {
             color: 0x800830,
             ambient: 0x800830
         });
-        player.avatar.head.add(hellcatMod);
-        hellcatMod.children[0].material = myMat;
-        hellcatMod.rotation.y = -1.56;
-        hellcatMod.rotation.z = 1.6;
-        hellcatMod.children[0].visibile = true;
-        hellcatMod.position.y = 1;
-        hellcatMod.position.z = 95;
+        hellcatMod.item.avatar.children[0].material = myMat;
+        player.avatar.head.add(hellcatMod.item.avatar.children[0]);
+        player.avatar.head.children[4].rotation.y = -1.56;
+        player.avatar.head.children[4].rotation.z = 1.6;
+        player.avatar.head.children[4].visible = false;
+        player.avatar.head.children[4].position.y = 0;
+        player.avatar.head.children[4].position.z = 90
+
         player.subjectTo([0, 0, 0]);
         //player.friction = new game.THREE.Vector3(1, 1, 10);
         //player.move([0,0,-0.000005]);
@@ -262,7 +267,14 @@ startFracVaders = function() {
 
 startFracIntro = function() {
     $('#loader').hide();
+
     $('#container').fadeIn("fast", function() {
+        var l = (($('body').width() / 2) - ($('#logo').width() / 2));
+        var t = (($('body').height() / 2) + ($('#logo').height() / 2));
+        $('#logo').css({
+            'left': l + 'px',
+            'top': t + 'px'
+        });
         $('#logo').fadeIn('fast');
     });
     window.game.scene.fog.color = {
@@ -324,6 +336,7 @@ startFracIntro = function() {
     });
 
     var mesh = new window.game.THREE.Mesh(new window.game.THREE.PlaneGeometry(2, 2), tunnelMat);
+    mesh.name = "spacetunnel";
     window.game.scene.add(mesh);
     window.game.camera.position.z = 1;
 

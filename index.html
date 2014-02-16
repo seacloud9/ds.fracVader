@@ -66,12 +66,9 @@
     <img src="images/cockpit1a.svg" id="cockpit" class="unselectable" style="display:none" />
     <script type="text/javascript">
     function startFracVader(){
-    $(function(
-        l = (($('body').width()/2) - ($('#logo').width()/2));
-        t = (($('body').height()/2) + ($('#logo').height()/2));
-        $('#logo').css({'left':l + 'px', 'top': t + 'px'});
-        startFracIntro();
-    ));
+        $(function(){
+            startFracIntro();
+        });
     }
     var preload = new createjs.LoadQueue(false);
     preload.addEventListener("fileload", handleFileComplete);
