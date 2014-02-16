@@ -33,7 +33,6 @@ window.addEventListener('keydown', function(ev) {
     if (ev.keyCode === 'R'.charCodeAt(0)) {
         player.toggle();
         var d = $('#cockpit').css('display');
-
         if (d == 'block') {
             $('#cockpit').hide();
             player.avatar.head.children[4].visible = true;
@@ -92,6 +91,9 @@ function createInvader(game) {
             vaders.visible = col[j][i];
             vader2.position.set(i, j, 6);
             vader2.visible = col[j][i];
+            vadersBG.vaderT = "bg";
+            vaders.vaderT = "front";
+            vader2.vaderT = "front";
             bg.add(vadersBG);
             body.add(bg);
             body.add(vaders);
@@ -105,30 +107,54 @@ function createInvader(game) {
 function createCreaures() {
     createCreature = require('voxel-creature')(game);
     cr = createInvader(game);
-    /// exp
+    /// merging geometry
+    var visibileArrBG = new Array();
     var visibileArr = new Array();
     var meshInvaderVisibile = function(obj) {
         for (var i = 0; obj.children.length > i; i++) {
-            if (obj.children[i].children.length == 0 && obj.children[i].visible == true) {
+            if (obj.children[i].children.length == 0 && obj.children[i].visible == true && obj.children[i].vaderT == "bg") {
+                visibileArrBG.push(obj.children[i]);
+            } else if (obj.children[i].visible == true && obj.children[i].vaderT == "front") {
                 visibileArr.push(obj.children[i]);
             } else {
                 meshInvaderVisibile(obj.children[i])
             }
-
         }
     }
     meshInvaderVisibile(cr);
     mergedGeo = new game.THREE.Geometry();
+    mergedGeoBG = new game.THREE.Geometry();
     for (var i = 0; visibileArr.length > i; i++) {
         if (i != 0) {
             window.game.THREE.GeometryUtils.merge(mergedGeo, visibileArr[i]);
         }
     }
+    for (var i = 0; visibileArrBG.length > i; i++) {
+        if (i != 0) {
+            window.game.THREE.GeometryUtils.merge(mergedGeoBG, visibileArrBG[i]);
+        }
+    }
+    groupBG = new game.THREE.Mesh(mergedGeoBG, new game.THREE.MeshLambertMaterial({
+        color: 0xffffff,
+        ambient: 0xffffff
+    }));
     groupM = new game.THREE.Mesh(mergedGeo, new game.THREE.MeshLambertMaterial({
         color: 0x800830,
         ambient: 0x800830
     }));
-    //window.game.scene.add(groupM);
+    var removeNonMerged = function(obj) {
+        for (var i = 0; obj.children.length > i; i++) {
+            if (obj.children != undefined && obj.children[i].children.length == 0 && obj.children[i].visible == true) {
+                obj.remove(obj.children[i]);
+                removeNonMerged(cr);
+            } else if (obj.children != undefined) {
+                removeNonMerged(obj.children[i]);
+            }
+        }
+    }
+    removeNonMerged(cr);
+    cr.add(groupM);
+    cr.add(groupBG);
     //exp
     creature = createCreature(cr);
     window.creature = creature;
@@ -187,24 +213,19 @@ startFracVaders = function() {
         positionStyle: Type.CUBE,
         positionBase: new window.game.THREE.Vector3(0, 5, -10),
         positionSpread: new window.game.THREE.Vector3(10, 10, 10),
-
         velocityStyle: Type.CUBE,
         velocityBase: new window.game.THREE.Vector3(0, 5, 20),
         velocitySpread: new window.game.THREE.Vector3(5, 5, 5),
-
         angleBase: 0,
         angleSpread: 720,
         angleVelocityBase: 10,
         angleVelocitySpread: 0,
-
         particleTexture: window.game.THREE.ImageUtils.loadTexture('images/spikey.png'),
-
         sizeBase: 4.0,
         sizeSpread: 2.0,
         colorBase: new window.game.THREE.Vector3(0.15, 1.0, 0.8), // H,S,L
         opacityBase: 1,
         blendStyle: window.game.THREE.AdditiveBlending,
-
         particlesPerSecond: 300,
         particleDeathAge: 1.0,
         emitterDeathAge: 6000000
