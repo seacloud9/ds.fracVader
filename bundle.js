@@ -3,10 +3,8 @@ var createGame = require('voxel-engine');
 var tic = createGame.tick;
 voxelpp = require('voxel-pp');
 var importShaders = require('./scripts/shaders.js');
-
 var hasGenerated = false;
 var hasGeneratedMod = false;
-
 
 window.game = createGame({
     chunkDistance: 3,
@@ -108,7 +106,7 @@ function createInvader(game) {
 function createCreaures() {
     createCreature = require('voxel-creature')(game);
     cr = createInvader(game);
-    /// exp
+    /// merging geometry
     var visibileArrBG = new Array();
     var visibileArr = new Array();
     var meshInvaderVisibile = function(obj) {
@@ -146,7 +144,8 @@ function createCreaures() {
     var removeNonMerged = function(obj) {
         for (var i = 0; obj.children.length > i; i++) {
             if (obj.children != undefined && obj.children[i].children.length == 0 && obj.children[i].visible == true) {
-                obj.remove(obj.children[i]);
+                obj.children[i].visible = false;
+                obj.children[i].vaderT = "hidden";
                 removeNonMerged(cr);
             } else if (obj.children != undefined) {
                 removeNonMerged(obj.children[i]);
@@ -162,19 +161,14 @@ function createCreaures() {
     creature.position.y = 10;
     creature.position.x = 0;
     creature.position.z = -30;
-    //creature.item.subjectTo([0,0.0000036,0]);
+
     creature.on('notice', function(player) {
         creature.lookAt(player);
-        //creature.move(0, 0, -0.5);
+        creature.move(((player.position.x - creature.position.x) * 0.1), ((player.position.y - creature.position.y) * 0.1), ((player.position.z - creature.position.z) * 0.001));
     });
-    /*
-    creature.on('block', function () { creature.jump() });
-    creature.notice(player, { radius: 500 });
-
-    creature.on('notice', function (player) {
-        creature.lookAt(player);
-        creature.move(0, 0, 0.5);
-      });*/
+    creature.notice(player, {
+        radius: 500
+    });
     setInterval(function() {
         if (creature.noticed) return;
         //creature.rotation.y += Math.random() * Math.PI / 2 - Math.PI / 4;
@@ -210,42 +204,40 @@ startFracVaders = function() {
     window.game.scene.remove(window.game.scene.__objects[1]);
     initPostProcess();
     canvasCallback = $.Callbacks();
-    var starTunnel = {
-        positionStyle: Type.CUBE,
-        positionBase: new window.game.THREE.Vector3(0, 5, -10),
+    window.game.starTunnel = new SPE.Group({
+        texture: window.game.THREE.ImageUtils.loadTexture('images/spikey.png'),
+        maxAge: 2
+    });
+
+    emitter = new SPE.Emitter({
+        position: new window.game.THREE.Vector3(0, 5, -10),
         positionSpread: new window.game.THREE.Vector3(10, 10, 10),
-        velocityStyle: Type.CUBE,
-        velocityBase: new window.game.THREE.Vector3(0, 5, 20),
-        velocitySpread: new window.game.THREE.Vector3(5, 5, 5),
-        angleBase: 0,
-        angleSpread: 720,
-        angleVelocityBase: 10,
-        angleVelocitySpread: 0,
-        particleTexture: window.game.THREE.ImageUtils.loadTexture('images/spikey.png'),
-        sizeBase: 4.0,
-        sizeSpread: 2.0,
-        colorBase: new window.game.THREE.Vector3(0.15, 1.0, 0.8), // H,S,L
-        opacityBase: 1,
-        blendStyle: window.game.THREE.AdditiveBlending,
-        particlesPerSecond: 300,
-        particleDeathAge: 1.0,
-        emitterDeathAge: 6000000
-    }
+        acceleration: new window.game.THREE.Vector3(0, 0, 10),
+        velocity: new window.game.THREE.Vector3(0, 0, 10),
+        colorStart: new window.game.THREE.Color('white'),
+        colorEnd: new window.game.THREE.Color('red'),
+        sizeStart: 2,
+        sizeEnd: 2,
+        opacityStart: 0,
+        opacityMiddle: 1,
+        opacityEnd: 0,
+        particleCount: 10000
+    });
+
+    window.game.starTunnel.addEmitter(emitter);
+    window.game.scene.add(window.game.starTunnel.mesh);
     window.game.scene.fog.color = {
         r: 0,
         g: 0,
         b: 0
     };
     game.view.renderer.setClearColor(0x000000, 1.0)
-    window.game.engine = new ParticleEngine();
-    window.game.engine.setValues(starTunnel);
-    window.game.engine.initialize();
-
 
     game.on('postrender', function(dt) {
-        window.game.engine.update(clock.getDelta() * 0.5);
+        window.game.starTunnel.tick(clock.getDelta() * 0.5);
         window.game.view.renderer.clear();
         postprocessor.composer.render(0.01);
+
     });
     var hellcat = new Image();
     hellcat.onload = function() {
@@ -280,13 +272,15 @@ startFracVaders = function() {
         $('#cockpit').css('bottom', '0px');
         $('#cockpit').fadeIn("fast");
         $('#phaser').remove();
+        createCreaures();
 
     }
     hellcat.src = 'images/hellcat2.png';
-    createCreaures();
+
 };
 
 startFracIntro = function() {
+    player = null;
     $('#loader').hide();
 
     $('#container').fadeIn("fast", function() {
@@ -349,23 +343,23 @@ startFracIntro = function() {
     uniformsTunnelFS.resolution.value.y = $('#container').height();
 
     tunnelMat = new window.game.THREE.ShaderMaterial({
-
         uniforms: uniformsTunnelFS,
         vertexShader: tunnelFVVS,
         fragmentShader: tunnelFVFS
 
     });
-
     var mesh = new window.game.THREE.Mesh(new window.game.THREE.PlaneGeometry(2, 2), tunnelMat);
     mesh.name = "spacetunnel";
     window.game.scene.add(mesh);
     window.game.camera.position.z = 1;
-
     game.on('tick', function(delta) {
+        if (window.game.starTunnel != undefined && player != null) {
+            emitter.position.z = (player.position.z - 10);
+            emitter.position.y = (player.position.y + 5);
+            emitter.position.x = player.position.x;
+        }
         uniformsTunnelFS.time.value += 0.01;
     });
-
-
 }
 },{"./scripts/shaders.js":62,"voxel-creature":2,"voxel-critter":4,"voxel-engine":7,"voxel-player":48,"voxel-pp":50}],2:[function(require,module,exports){
 var inherits = require('inherits');
