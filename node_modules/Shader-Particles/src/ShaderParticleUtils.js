@@ -4,7 +4,7 @@
 //     & Lee Stemkoski (http://www.adelphi.edu/~stemkoski/)
 //
 // Based on Lee Stemkoski's original work:
-//    (https://github.com/stemkoski/stemkoski.github.com/blob/master/Three.js/js/ParticleEngine.js).
+//    (https://github.com/stemkoski/stemkoski.github.com/blob/master/SPE.THREE.js/js/ParticleEngine.js).
 //
 // ShaderParticleGroup may be freely distributed under the MIT license (See LICENSE.txt)
 
@@ -18,46 +18,46 @@ SPE.utils = {
      *
      * @private
      *
-     * @param  {THREE.Vector3} base
-     * @param  {THREE.Vector3} spread
-     * @return {THREE.Vector3}
+     * @param  {SPE.THREE.Vector3} base
+     * @param  {SPE.THREE.Vector3} spread
+     * @return {SPE.THREE.Vector3}
      */
-    randomVector3: function( base, spread ) {
-        var v = new THREE.Vector3();
+    randomVector3: function(base, spread) {
+        var v = new SPE.THREE.Vector3();
 
-        v.copy( base );
+        v.copy(base);
 
-        v.x += Math.random() * spread.x - (spread.x/2);
-        v.y += Math.random() * spread.y - (spread.y/2);
-        v.z += Math.random() * spread.z - (spread.z/2);
+        v.x += Math.random() * spread.x - (spread.x / 2);
+        v.y += Math.random() * spread.y - (spread.y / 2);
+        v.z += Math.random() * spread.z - (spread.z / 2);
 
         return v;
     },
 
     /**
-     * Create a new THREE.Color instance and given a base vector and
+     * Create a new SPE.THREE.Color instance and given a base vector and
      * spread range vector, assign random values.
      *
-     * Note that THREE.Color RGB values are in the range of 0 - 1, not 0 - 255.
+     * Note that SPE.THREE.Color RGB values are in the range of 0 - 1, not 0 - 255.
      *
      * @private
      *
-     * @param  {THREE.Vector3} base
-     * @param  {THREE.Vector3} spread
-     * @return {THREE.Color}
+     * @param  {SPE.THREE.Vector3} base
+     * @param  {SPE.THREE.Vector3} spread
+     * @return {SPE.THREE.Color}
      */
-    randomColor: function( base, spread ) {
-        var v = new THREE.Color();
+    randomColor: function(base, spread) {
+        var v = new SPE.THREE.Color();
 
-        v.copy( base );
+        v.copy(base);
 
-        v.r += (Math.random() * spread.x) - (spread.x/2);
-        v.g += (Math.random() * spread.y) - (spread.y/2);
-        v.b += (Math.random() * spread.z) - (spread.z/2);
+        v.r += (Math.random() * spread.x) - (spread.x / 2);
+        v.g += (Math.random() * spread.y) - (spread.y / 2);
+        v.b += (Math.random() * spread.z) - (spread.z / 2);
 
-        v.r = Math.max( 0, Math.min( v.r, 1 ) );
-        v.g = Math.max( 0, Math.min( v.g, 1 ) );
-        v.b = Math.max( 0, Math.min( v.b, 1 ) );
+        v.r = Math.max(0, Math.min(v.r, 1));
+        v.g = Math.max(0, Math.min(v.g, 1));
+        v.b = Math.max(0, Math.min(v.b, 1));
 
         return v;
     },
@@ -72,100 +72,100 @@ SPE.utils = {
      * @param  {Number} spread
      * @return {Number}
      */
-    randomFloat: function( base, spread ) {
+    randomFloat: function(base, spread) {
         return base + spread * (Math.random() - 0.5);
     },
 
     /**
-     * Create a new THREE.Vector3 instance and project it onto a random point
+     * Create a new SPE.THREE.Vector3 instance and project it onto a random point
      * on a sphere with randomized radius.
      *
-     * @param  {THREE.Vector3} base
+     * @param  {SPE.THREE.Vector3} base
      * @param  {Number} radius
-     * @param  {THREE.Vector3} radiusSpread
-     * @param  {THREE.Vector3} radiusScale
+     * @param  {SPE.THREE.Vector3} radiusSpread
+     * @param  {SPE.THREE.Vector3} radiusScale
      *
      * @private
      *
-     * @return {THREE.Vector3}
+     * @return {SPE.THREE.Vector3}
      */
-    randomVector3OnSphere: function( base, radius, radiusSpread, radiusScale, radiusSpreadClamp ) {
+    randomVector3OnSphere: function(base, radius, radiusSpread, radiusScale, radiusSpreadClamp) {
         var z = 2 * Math.random() - 1;
         var t = 6.2832 * Math.random();
-        var r = Math.sqrt( 1 - z*z );
-        var vec = new THREE.Vector3( r * Math.cos(t), r * Math.sin(t), z );
+        var r = Math.sqrt(1 - z * z);
+        var vec = new SPE.THREE.Vector3(r * Math.cos(t), r * Math.sin(t), z);
 
-        var rand = this._randomFloat( radius, radiusSpread );
+        var rand = this._randomFloat(radius, radiusSpread);
 
-        if( radiusSpreadClamp ) {
-            rand = Math.round( rand / radiusSpreadClamp ) * radiusSpreadClamp;
+        if (radiusSpreadClamp) {
+            rand = Math.round(rand / radiusSpreadClamp) * radiusSpreadClamp;
         }
 
-        vec.multiplyScalar( rand );
+        vec.multiplyScalar(rand);
 
-        if( radiusScale ) {
-            vec.multiply( radiusScale );
+        if (radiusScale) {
+            vec.multiply(radiusScale);
         }
 
-        vec.add( base );
+        vec.add(base);
 
         return vec;
     },
 
     /**
-     * Create a new THREE.Vector3 instance and project it onto a random point
+     * Create a new SPE.THREE.Vector3 instance and project it onto a random point
      * on a disk (in the XY-plane) centered at `base` and with randomized radius.
      *
-     * @param  {THREE.Vector3} base
+     * @param  {SPE.THREE.Vector3} base
      * @param  {Number} radius
-     * @param  {THREE.Vector3} radiusSpread
-     * @param  {THREE.Vector3} radiusScale
+     * @param  {SPE.THREE.Vector3} radiusSpread
+     * @param  {SPE.THREE.Vector3} radiusScale
      *
      * @private
      *
-     * @return {THREE.Vector3}
+     * @return {SPE.THREE.Vector3}
      */
-    randomVector3OnDisk: function( base, radius, radiusSpread, radiusScale, radiusSpreadClamp ) {
+    randomVector3OnDisk: function(base, radius, radiusSpread, radiusScale, radiusSpreadClamp) {
         var t = 6.2832 * Math.random();
-        var rand = this._randomFloat( radius, radiusSpread );
+        var rand = this._randomFloat(radius, radiusSpread);
 
-        if( radiusSpreadClamp ) {
-            rand = Math.round( rand / radiusSpreadClamp ) * radiusSpreadClamp;
+        if (radiusSpreadClamp) {
+            rand = Math.round(rand / radiusSpreadClamp) * radiusSpreadClamp;
         }
 
-        var vec = new THREE.Vector3( Math.cos(t), Math.sin(t), 0 ).multiplyScalar( rand );
+        var vec = new SPE.THREE.Vector3(Math.cos(t), Math.sin(t), 0).multiplyScalar(rand);
 
-        if ( radiusScale ) {
-            vec.multiply( radiusScale );
+        if (radiusScale) {
+            vec.multiply(radiusScale);
         }
 
-        vec.add( base );
+        vec.add(base);
 
-        return vec ;
+        return vec;
     },
 
 
     /**
-     * Create a new THREE.Vector3 instance, and given a sphere with center `base` and
+     * Create a new SPE.THREE.Vector3 instance, and given a sphere with center `base` and
      * point `position` on sphere, set direction away from sphere center with random magnitude.
      *
-     * @param  {THREE.Vector3} base
-     * @param  {THREE.Vector3} position
+     * @param  {SPE.THREE.Vector3} base
+     * @param  {SPE.THREE.Vector3} position
      * @param  {Number} speed
      * @param  {Number} speedSpread
-     * @param  {THREE.Vector3} scale
+     * @param  {SPE.THREE.Vector3} scale
      *
      * @private
      *
-     * @return {THREE.Vector3}
+     * @return {SPE.THREE.Vector3}
      */
-    randomVelocityVector3OnSphere: function( base, position, speed, speedSpread, scale ) {
-        var direction = new THREE.Vector3().subVectors( base, position );
+    randomVelocityVector3OnSphere: function(base, position, speed, speedSpread, scale) {
+        var direction = new SPE.THREE.Vector3().subVectors(base, position);
 
-        direction.normalize().multiplyScalar( Math.abs( this._randomFloat( speed, speedSpread ) ) );
+        direction.normalize().multiplyScalar(Math.abs(this._randomFloat(speed, speedSpread)));
 
-        if( scale ) {
-            direction.multiply( scale );
+        if (scale) {
+            direction.multiply(scale);
         }
 
         return direction;
@@ -177,45 +177,45 @@ SPE.utils = {
      * Given a base vector and a spread vector, randomise the given vector
      * accordingly.
      *
-     * @param  {THREE.Vector3} vector
-     * @param  {THREE.Vector3} base
-     * @param  {THREE.Vector3} spread
+     * @param  {SPE.THREE.Vector3} vector
+     * @param  {SPE.THREE.Vector3} base
+     * @param  {SPE.THREE.Vector3} spread
      *
      * @private
      *
      * @return {[type]}
      */
-    randomizeExistingVector3: function( v, base, spread ) {
-        v.copy( base );
+    randomizeExistingVector3: function(v, base, spread) {
+        v.copy(base);
 
-        v.x += Math.random() * spread.x - (spread.x/2);
-        v.y += Math.random() * spread.y - (spread.y/2);
-        v.z += Math.random() * spread.z - (spread.z/2);
+        v.x += Math.random() * spread.x - (spread.x / 2);
+        v.y += Math.random() * spread.y - (spread.y / 2);
+        v.z += Math.random() * spread.z - (spread.z / 2);
     },
 
 
     /**
-     * Randomize a THREE.Color instance and given a base vector and
+     * Randomize a SPE.THREE.Color instance and given a base vector and
      * spread range vector, assign random values.
      *
-     * Note that THREE.Color RGB values are in the range of 0 - 1, not 0 - 255.
+     * Note that SPE.THREE.Color RGB values are in the range of 0 - 1, not 0 - 255.
      *
      * @private
      *
-     * @param  {THREE.Vector3} base
-     * @param  {THREE.Vector3} spread
-     * @return {THREE.Color}
+     * @param  {SPE.THREE.Vector3} base
+     * @param  {SPE.THREE.Vector3} spread
+     * @return {SPE.THREE.Color}
      */
-    randomizeExistingColor: function( v, base, spread ) {
-        v.copy( base );
+    randomizeExistingColor: function(v, base, spread) {
+        v.copy(base);
 
-        v.r += (Math.random() * spread.x) - (spread.x/2);
-        v.g += (Math.random() * spread.y) - (spread.y/2);
-        v.b += (Math.random() * spread.z) - (spread.z/2);
+        v.r += (Math.random() * spread.x) - (spread.x / 2);
+        v.g += (Math.random() * spread.y) - (spread.y / 2);
+        v.b += (Math.random() * spread.z) - (spread.z / 2);
 
-        v.r = Math.max( 0, Math.min( v.r, 1 ) );
-        v.g = Math.max( 0, Math.min( v.g, 1 ) );
-        v.b = Math.max( 0, Math.min( v.b, 1 ) );
+        v.r = Math.max(0, Math.min(v.r, 1));
+        v.g = Math.max(0, Math.min(v.g, 1));
+        v.b = Math.max(0, Math.min(v.b, 1));
     },
 
     /**
@@ -224,27 +224,26 @@ SPE.utils = {
      *
      * @private
      *
-     * @param  {THREE.Vector3} v
-     * @param  {THREE.Vector3} base
+     * @param  {SPE.THREE.Vector3} v
+     * @param  {SPE.THREE.Vector3} base
      * @param  {Number} radius
      */
-    randomizeExistingVector3OnSphere: function( v, base, radius, radiusSpread, radiusScale, radiusSpreadClamp ) {
+    randomizeExistingVector3OnSphere: function(v, base, radius, radiusSpread, radiusScale, radiusSpreadClamp) {
         var z = 2 * Math.random() - 1,
             t = 6.2832 * Math.random(),
-            r = Math.sqrt( 1 - z*z ),
-            rand = this._randomFloat( radius, radiusSpread );
+            r = Math.sqrt(1 - z * z),
+            rand = this._randomFloat(radius, radiusSpread);
 
-        if( radiusSpreadClamp ) {
-            rand = Math.round( rand / radiusSpreadClamp ) * radiusSpreadClamp;
+        if (radiusSpreadClamp) {
+            rand = Math.round(rand / radiusSpreadClamp) * radiusSpreadClamp;
         }
 
         v.set(
-            (r * Math.cos(t)) * rand,
-            (r * Math.sin(t)) * rand,
+            (r * Math.cos(t)) * rand, (r * Math.sin(t)) * rand,
             z * rand
-        ).multiply( radiusScale );
+        ).multiply(radiusScale);
 
-        v.add( base );
+        v.add(base);
     },
 
 
@@ -254,36 +253,36 @@ SPE.utils = {
      *
      * @private
      *
-     * @param  {THREE.Vector3} v
-     * @param  {THREE.Vector3} base
+     * @param  {SPE.THREE.Vector3} v
+     * @param  {SPE.THREE.Vector3} base
      * @param  {Number} radius
      */
-    randomizeExistingVector3OnDisk: function( v, base, radius, radiusSpread, radiusScale, radiusSpreadClamp ) {
+    randomizeExistingVector3OnDisk: function(v, base, radius, radiusSpread, radiusScale, radiusSpreadClamp) {
         var t = 6.2832 * Math.random(),
-            rand = Math.abs( this._randomFloat( radius, radiusSpread ) );
+            rand = Math.abs(this._randomFloat(radius, radiusSpread));
 
-        if( radiusSpreadClamp ) {
-            rand = Math.round( rand / radiusSpreadClamp ) * radiusSpreadClamp;
+        if (radiusSpreadClamp) {
+            rand = Math.round(rand / radiusSpreadClamp) * radiusSpreadClamp;
         }
 
         v.set(
-            Math.cos( t ),
-            Math.sin( t ),
+            Math.cos(t),
+            Math.sin(t),
             0
-        ).multiplyScalar( rand );
+        ).multiplyScalar(rand);
 
-        if ( radiusScale ) {
-            v.multiply( radiusScale );
+        if (radiusScale) {
+            v.multiply(radiusScale);
         }
 
-        v.add( base );
+        v.add(base);
     },
 
-    randomizeExistingVelocityVector3OnSphere: function( v, base, position, speed, speedSpread ) {
+    randomizeExistingVelocityVector3OnSphere: function(v, base, position, speed, speedSpread) {
         v.copy(position)
             .sub(base)
             .normalize()
-            .multiplyScalar( Math.abs( this._randomFloat( speed, speedSpread ) ) );
+            .multiplyScalar(Math.abs(this._randomFloat(speed, speedSpread)));
     },
 
     generateID: function() {
@@ -291,7 +290,8 @@ SPE.utils = {
 
         str = str.replace(/[xy]/g, function(c) {
             var rand = Math.random();
-            var r = rand*16|0%16, v = c === 'x' ? r : (r&0x3|0x8);
+            var r = rand * 16 | 0 % 16,
+                v = c === 'x' ? r : (r & 0x3 | 0x8);
 
             return v.toString(16);
         });

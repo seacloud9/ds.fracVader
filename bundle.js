@@ -1,10 +1,12 @@
 ;(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);throw new Error("Cannot find module '"+o+"'")}var f=n[o]={exports:{}};t[o][0].call(f.exports,function(e){var n=t[o][1][e];return s(n?n:e)},f,f.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
-var createGame = require('voxel-engine');
-var tic = createGame.tick;
-voxelpp = require('voxel-pp');
-var importShaders = require('./scripts/shaders.js');
-var hasGenerated = false;
-var hasGeneratedMod = false;
+var createGame = require('voxel-engine'),
+    tic = createGame.tick,
+    voxelpp = require('voxel-pp'),
+    importShaders = require('./scripts/shaders.js'),
+    hasGenerated = false,
+    hasGeneratedMod = false,
+    cockpitView = true,
+    bulletmovespeed = 0.05 * 5;
 
 window.game = createGame({
     chunkDistance: 3,
@@ -14,14 +16,16 @@ window.game = createGame({
     generateChunks: false,
     texturePath: 'textures/',
     controls: {
-        discreteFire: false
+        discreteFire: false,
+        jump_max_speed: 0,
+        jump_speed: 0.004
     },
     materials: [
         ['glass2'], 'brick', 'dirt', 'obsidian'
     ]
 });
 var critterCreator = require('voxel-critter')(game);
-clock = new game.THREE.Clock();
+var clock = new game.THREE.Clock();
 window.game.view.renderer.autoClear = true;
 game.tic = tic;
 game.scene.fog.far = 90000;
@@ -35,10 +39,16 @@ window.addEventListener('keydown', function(ev) {
         if (d == 'block') {
             $('#cockpit').hide();
             player.avatar.head.children[4].visible = true;
+            cockpitView = false;
         } else {
             $('#cockpit').show();
             player.avatar.head.children[4].visible = false;
+            cockpitView = true;
         }
+    }
+    if (ev.keyCode == 32) {
+        ev.preventDefault();
+        createBullet();
     }
 });
 
@@ -155,7 +165,6 @@ function createCreaures() {
     removeNonMerged(cr);
     cr.add(groupM);
     cr.add(groupBG);
-    //exp
     creature = createCreature(cr);
     window.creature = creature;
     creature.position.y = 10;
@@ -204,14 +213,14 @@ startFracVaders = function() {
     window.game.scene.remove(window.game.scene.__objects[1]);
     initPostProcess();
     canvasCallback = $.Callbacks();
+    SPE = require('Shader-Particles')(game);
     window.game.starTunnel = new SPE.Group({
         texture: window.game.THREE.ImageUtils.loadTexture('images/spikey.png'),
         maxAge: 2
-    });
-
+    }, game.THREE);
     emitter = new SPE.Emitter({
-        position: new window.game.THREE.Vector3(0, 5, -10),
-        positionSpread: new window.game.THREE.Vector3(10, 10, 10),
+        position: new window.game.THREE.Vector3(0, 0, 10),
+        positionSpread: new window.game.THREE.Vector3(150, 150, 150),
         acceleration: new window.game.THREE.Vector3(0, 0, 10),
         velocity: new window.game.THREE.Vector3(0, 0, 10),
         colorStart: new window.game.THREE.Color('white'),
@@ -221,18 +230,17 @@ startFracVaders = function() {
         opacityStart: 0,
         opacityMiddle: 1,
         opacityEnd: 0,
-        particleCount: 10000
+        particleCount: 5000
     });
 
     window.game.starTunnel.addEmitter(emitter);
-    window.game.scene.add(window.game.starTunnel.mesh);
+
     window.game.scene.fog.color = {
         r: 0,
         g: 0,
         b: 0
     };
-    game.view.renderer.setClearColor(0x000000, 1.0)
-
+    game.view.renderer.setClearColor(0x000000, 1.0);
     game.on('postrender', function(dt) {
         window.game.starTunnel.tick(clock.getDelta() * 0.5);
         window.game.view.renderer.clear();
@@ -264,9 +272,15 @@ startFracVaders = function() {
         player.avatar.head.children[4].position.z = 90
 
         player.subjectTo([0, 0, 0]);
+        hellcatMod.item.subjectTo([0, 0, 0]);
+        player.avatar.name = "omegavader";
         //player.friction = new game.THREE.Vector3(1, 1, 10);
         //player.move([0,0,-0.000005]);
         player.possess();
+        player.avatar.add(window.game.starTunnel.mesh);
+        window.game.starTunnel.mesh.position.z = -90;
+        window.game.starTunnel.mesh.position.y = 20;
+
         $('#loader').hide();
         $('#container').fadeIn("fast");
         $('#cockpit').css('bottom', '0px');
@@ -278,6 +292,54 @@ startFracVaders = function() {
     hellcat.src = 'images/hellcat2.png';
 
 };
+
+//// shooting logic 
+var bullets = [];
+var sphereMaterial = new window.game.THREE.MeshBasicMaterial({
+    color: 0xffffff
+});
+var sphereGeo = new window.game.THREE.SphereGeometry(2, 6, 6);
+
+function getShootDir(targetVec) {
+    var vector = targetVec;
+    targetVec.set(0, 0, 1);
+    projector.unprojectVector(vector, camera);
+    var ray = new THREE.Ray(sphereBody.position, vector.subSelf(sphereBody.position).normalize());
+    targetVec.x = ray.direction.x;
+    targetVec.y = ray.direction.y;
+    targetVec.z = ray.direction.z;
+}
+
+createBullet = function(obj) {
+    pro = new window.game.THREE.Projector();
+    if (obj === undefined) {
+        obj = window.game.camera;
+    }
+    var bullet = new window.game.THREE.Mesh(sphereGeo, sphereMaterial);
+    var bullet2 = new window.game.THREE.Mesh(sphereGeo, sphereMaterial);
+    if (obj instanceof window.game.THREE.Camera) {
+        var vector = player.position;
+        defaultPos = new window.game.THREE.Vector3(0, 2, 0);
+        bullet.position.set(vector.x + 14, vector.y * 0.8, vector.z);
+        bullet2.position.set(vector.x - 14, vector.y * 0.8, vector.z);
+        if (player.position.x == defaultPos.x && player.position.z == defaultPos.z) {
+            vector = new window.game.THREE.Vector3(player.position.x, player.position.y, 1);
+            pro.unprojectVector(vector, obj);
+            ray = bullet.ray = bullet2.ray = new window.game.THREE.Ray(player.position, vector.sub(player.position).normalize());
+        } else {
+            pro.unprojectVector(vector, obj);
+            ray = bullet.ray = bullet2.ray = new window.game.THREE.Ray(player.position, vector.sub(player.position).normalize());
+        }
+    } else {
+        // enemey logic
+
+    };
+    bullet.owner = obj;
+    bullets.push(bullet, bullet2);
+    window.game.scene.add(bullet);
+    window.game.scene.add(bullet2);
+    return [bullet, bullet2]
+}
 
 startFracIntro = function() {
     player = null;
@@ -341,7 +403,6 @@ startFracIntro = function() {
     uniformsTunnelFS.iChannel0.value.wrapS = uniformsTunnelFS.iChannel0.value.wrapT = window.game.THREE.RepeatWrapping;
     uniformsTunnelFS.resolution.value.x = $('#container').width();
     uniformsTunnelFS.resolution.value.y = $('#container').height();
-
     tunnelMat = new window.game.THREE.ShaderMaterial({
         uniforms: uniformsTunnelFS,
         vertexShader: tunnelFVVS,
@@ -353,20 +414,1210 @@ startFracIntro = function() {
     window.game.scene.add(mesh);
     window.game.camera.position.z = 1;
     game.on('tick', function(delta) {
-        if (window.game.starTunnel != undefined && player != null) {
-            emitter.position.z = (player.position.z - 10);
-            emitter.position.y = (player.position.y + 5);
-            emitter.position.x = player.position.x;
-        }
         uniformsTunnelFS.time.value += 0.01;
+        speed = delta * bulletmovespeed;
+        for (var i = bullets.length - 1; i >= 0; i--) {
+            var b = bullets[i],
+                p = b.position,
+                d = b.ray.direction;
+            var hit = false;
+            if (!hit) {
+                b.translateX(speed * d.x);
+                //bullets[i].translateY(speed * bullets[i].direction.y);
+                b.translateZ(speed * d.z);
+            }
+        }
     });
 }
-},{"./scripts/shaders.js":62,"voxel-creature":2,"voxel-critter":4,"voxel-engine":7,"voxel-player":48,"voxel-pp":50}],2:[function(require,module,exports){
+},{"./scripts/shaders.js":63,"Shader-Particles":2,"voxel-creature":3,"voxel-critter":5,"voxel-engine":8,"voxel-player":49,"voxel-pp":51}],2:[function(require,module,exports){
+module.exports = function(game) {
+    var THREE = game.THREE;
+
+
+
+    var SPE = SPE || {};
+
+    SPE.utils = {
+
+        /**
+         * Given a base vector and a spread range vector, create
+         * a new THREE.Vector3 instance with randomised values.
+         *
+         * @private
+         *
+         * @param  {THREE.Vector3} base
+         * @param  {THREE.Vector3} spread
+         * @return {THREE.Vector3}
+         */
+        randomVector3: function(base, spread) {
+            var v = new THREE.Vector3();
+
+            v.copy(base);
+
+            v.x += Math.random() * spread.x - (spread.x / 2);
+            v.y += Math.random() * spread.y - (spread.y / 2);
+            v.z += Math.random() * spread.z - (spread.z / 2);
+
+            return v;
+        },
+
+        /**
+         * Create a new THREE.Color instance and given a base vector and
+         * spread range vector, assign random values.
+         *
+         * Note that THREE.Color RGB values are in the range of 0 - 1, not 0 - 255.
+         *
+         * @private
+         *
+         * @param  {THREE.Vector3} base
+         * @param  {THREE.Vector3} spread
+         * @return {THREE.Color}
+         */
+        randomColor: function(base, spread) {
+            var v = new THREE.Color();
+
+            v.copy(base);
+
+            v.r += (Math.random() * spread.x) - (spread.x / 2);
+            v.g += (Math.random() * spread.y) - (spread.y / 2);
+            v.b += (Math.random() * spread.z) - (spread.z / 2);
+
+            v.r = Math.max(0, Math.min(v.r, 1));
+            v.g = Math.max(0, Math.min(v.g, 1));
+            v.b = Math.max(0, Math.min(v.b, 1));
+
+            return v;
+        },
+
+        /**
+         * Create a random Number value based on an initial value and
+         * a spread range
+         *
+         * @private
+         *
+         * @param  {Number} base
+         * @param  {Number} spread
+         * @return {Number}
+         */
+        randomFloat: function(base, spread) {
+            return base + spread * (Math.random() - 0.5);
+        },
+
+        /**
+         * Create a new THREE.Vector3 instance and project it onto a random point
+         * on a sphere with randomized radius.
+         *
+         * @param  {THREE.Vector3} base
+         * @param  {Number} radius
+         * @param  {THREE.Vector3} radiusSpread
+         * @param  {THREE.Vector3} radiusScale
+         *
+         * @private
+         *
+         * @return {THREE.Vector3}
+         */
+        randomVector3OnSphere: function(base, radius, radiusSpread, radiusScale, radiusSpreadClamp) {
+            var z = 2 * Math.random() - 1;
+            var t = 6.2832 * Math.random();
+            var r = Math.sqrt(1 - z * z);
+            var vec = new THREE.Vector3(r * Math.cos(t), r * Math.sin(t), z);
+
+            var rand = this._randomFloat(radius, radiusSpread);
+
+            if (radiusSpreadClamp) {
+                rand = Math.round(rand / radiusSpreadClamp) * radiusSpreadClamp;
+            }
+
+            vec.multiplyScalar(rand);
+
+            if (radiusScale) {
+                vec.multiply(radiusScale);
+            }
+
+            vec.add(base);
+
+            return vec;
+        },
+
+        /**
+         * Create a new THREE.Vector3 instance and project it onto a random point
+         * on a disk (in the XY-plane) centered at `base` and with randomized radius.
+         *
+         * @param  {THREE.Vector3} base
+         * @param  {Number} radius
+         * @param  {THREE.Vector3} radiusSpread
+         * @param  {THREE.Vector3} radiusScale
+         *
+         * @private
+         *
+         * @return {THREE.Vector3}
+         */
+        randomVector3OnDisk: function(base, radius, radiusSpread, radiusScale, radiusSpreadClamp) {
+            var t = 6.2832 * Math.random();
+            var rand = this._randomFloat(radius, radiusSpread);
+
+            if (radiusSpreadClamp) {
+                rand = Math.round(rand / radiusSpreadClamp) * radiusSpreadClamp;
+            }
+
+            var vec = new THREE.Vector3(Math.cos(t), Math.sin(t), 0).multiplyScalar(rand);
+
+            if (radiusScale) {
+                vec.multiply(radiusScale);
+            }
+
+            vec.add(base);
+
+            return vec;
+        },
+
+
+        /**
+         * Create a new THREE.Vector3 instance, and given a sphere with center `base` and
+         * point `position` on sphere, set direction away from sphere center with random magnitude.
+         *
+         * @param  {THREE.Vector3} base
+         * @param  {THREE.Vector3} position
+         * @param  {Number} speed
+         * @param  {Number} speedSpread
+         * @param  {THREE.Vector3} scale
+         *
+         * @private
+         *
+         * @return {THREE.Vector3}
+         */
+        randomVelocityVector3OnSphere: function(base, position, speed, speedSpread, scale) {
+            var direction = new THREE.Vector3().subVectors(base, position);
+
+            direction.normalize().multiplyScalar(Math.abs(this._randomFloat(speed, speedSpread)));
+
+            if (scale) {
+                direction.multiply(scale);
+            }
+
+            return direction;
+        },
+
+
+
+        /**
+         * Given a base vector and a spread vector, randomise the given vector
+         * accordingly.
+         *
+         * @param  {THREE.Vector3} vector
+         * @param  {THREE.Vector3} base
+         * @param  {THREE.Vector3} spread
+         *
+         * @private
+         *
+         * @return {[type]}
+         */
+        randomizeExistingVector3: function(v, base, spread) {
+            v.copy(base);
+
+            v.x += Math.random() * spread.x - (spread.x / 2);
+            v.y += Math.random() * spread.y - (spread.y / 2);
+            v.z += Math.random() * spread.z - (spread.z / 2);
+        },
+
+
+        /**
+         * Randomize a THREE.Color instance and given a base vector and
+         * spread range vector, assign random values.
+         *
+         * Note that THREE.Color RGB values are in the range of 0 - 1, not 0 - 255.
+         *
+         * @private
+         *
+         * @param  {THREE.Vector3} base
+         * @param  {THREE.Vector3} spread
+         * @return {THREE.Color}
+         */
+        randomizeExistingColor: function(v, base, spread) {
+            v.copy(base);
+
+            v.r += (Math.random() * spread.x) - (spread.x / 2);
+            v.g += (Math.random() * spread.y) - (spread.y / 2);
+            v.b += (Math.random() * spread.z) - (spread.z / 2);
+
+            v.r = Math.max(0, Math.min(v.r, 1));
+            v.g = Math.max(0, Math.min(v.g, 1));
+            v.b = Math.max(0, Math.min(v.b, 1));
+        },
+
+        /**
+         * Given an existing particle vector, project it onto a random point on a
+         * sphere with radius `radius` and position `base`.
+         *
+         * @private
+         *
+         * @param  {THREE.Vector3} v
+         * @param  {THREE.Vector3} base
+         * @param  {Number} radius
+         */
+        randomizeExistingVector3OnSphere: function(v, base, radius, radiusSpread, radiusScale, radiusSpreadClamp) {
+            var z = 2 * Math.random() - 1,
+                t = 6.2832 * Math.random(),
+                r = Math.sqrt(1 - z * z),
+                rand = this._randomFloat(radius, radiusSpread);
+
+            if (radiusSpreadClamp) {
+                rand = Math.round(rand / radiusSpreadClamp) * radiusSpreadClamp;
+            }
+
+            v.set(
+                (r * Math.cos(t)) * rand, (r * Math.sin(t)) * rand,
+                z * rand
+            ).multiply(radiusScale);
+
+            v.add(base);
+        },
+
+
+        /**
+         * Given an existing particle vector, project it onto a random point
+         * on a disk (in the XY-plane) centered at `base` and with radius `radius`.
+         *
+         * @private
+         *
+         * @param  {THREE.Vector3} v
+         * @param  {THREE.Vector3} base
+         * @param  {Number} radius
+         */
+        randomizeExistingVector3OnDisk: function(v, base, radius, radiusSpread, radiusScale, radiusSpreadClamp) {
+            var t = 6.2832 * Math.random(),
+                rand = Math.abs(this._randomFloat(radius, radiusSpread));
+
+            if (radiusSpreadClamp) {
+                rand = Math.round(rand / radiusSpreadClamp) * radiusSpreadClamp;
+            }
+
+            v.set(
+                Math.cos(t),
+                Math.sin(t),
+                0
+            ).multiplyScalar(rand);
+
+            if (radiusScale) {
+                v.multiply(radiusScale);
+            }
+
+            v.add(base);
+        },
+
+        randomizeExistingVelocityVector3OnSphere: function(v, base, position, speed, speedSpread) {
+            v.copy(position)
+                .sub(base)
+                .normalize()
+                .multiplyScalar(Math.abs(this._randomFloat(speed, speedSpread)));
+        },
+
+        generateID: function() {
+            var str = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx';
+
+            str = str.replace(/[xy]/g, function(c) {
+                var rand = Math.random();
+                var r = rand * 16 | 0 % 16,
+                    v = c === 'x' ? r : (r & 0x3 | 0x8);
+
+                return v.toString(16);
+            });
+
+            return str;
+        }
+    };
+
+    var SPE = SPE || {};
+
+    SPE.Group = function(options, THREE) {
+        SPE.THREE = THREE;
+        var that = this;
+
+        that.fixedTimeStep = parseFloat(typeof options.fixedTimeStep === 'number' ? options.fixedTimeStep : 0.016);
+
+        // Uniform properties ( applied to all particles )
+        that.maxAge = parseFloat(options.maxAge || 3);
+        that.texture = options.texture || null;
+        that.hasPerspective = parseInt(typeof options.hasPerspective === 'number' ? options.hasPerspective : 1, 10);
+        that.colorize = parseInt(typeof options.colorize === 'number' ? options.colorize : 1, 10);
+
+        // Material properties
+        that.blending = typeof options.blending === 'number' ? options.blending : THREE.AdditiveBlending;
+        that.transparent = options.transparent || true;
+        that.alphaTest = typeof options.alphaTest === 'number' ? options.alphaTest : 0.5;
+        that.depthWrite = options.depthWrite || false;
+        that.depthTest = options.depthTest || true;
+
+        // Create uniforms
+        that.uniforms = {
+            duration: {
+                type: 'f',
+                value: that.maxAge
+            },
+            texture: {
+                type: 't',
+                value: that.texture
+            },
+            hasPerspective: {
+                type: 'i',
+                value: that.hasPerspective
+            },
+            colorize: {
+                type: 'i',
+                value: that.colorize
+            }
+        };
+
+        // Create a map of attributes that will hold values for each particle in this group.
+        that.attributes = {
+            acceleration: {
+                type: 'v3',
+                value: []
+            },
+            velocity: {
+                type: 'v3',
+                value: []
+            },
+
+            alive: {
+                type: 'f',
+                value: []
+            },
+            age: {
+                type: 'f',
+                value: []
+            },
+
+            size: {
+                type: 'v3',
+                value: []
+            },
+            angle: {
+                type: 'v4',
+                value: []
+            },
+
+            colorStart: {
+                type: 'c',
+                value: []
+            },
+            colorMiddle: {
+                type: 'c',
+                value: []
+            },
+            colorEnd: {
+                type: 'c',
+                value: []
+            },
+
+            opacity: {
+                type: 'v3',
+                value: []
+            }
+        };
+
+        // Emitters (that aren't static) will be added to this array for
+        // processing during the `tick()` function.
+        that.emitters = [];
+
+        // Create properties for use by the emitter pooling functions.
+        that._pool = [];
+        that._poolCreationSettings = null;
+        that._createNewWhenPoolEmpty = 0;
+        that.maxAgeMilliseconds = that.maxAge * 1000;
+
+        // Create an empty geometry to hold the particles.
+        // Each particle is a vertex pushed into this geometry's
+        // vertices array.
+        that.geometry = new THREE.Geometry();
+
+        // Create the shader material using the properties we set above.
+        that.material = new THREE.ShaderMaterial({
+            uniforms: that.uniforms,
+            attributes: that.attributes,
+            vertexShader: SPE.shaders.vertex,
+            fragmentShader: SPE.shaders.fragment,
+            blending: that.blending,
+            transparent: that.transparent,
+            alphaTest: that.alphaTest,
+            depthWrite: that.depthWrite,
+            depthTest: that.depthTest
+        });
+
+        // And finally create the ParticleSystem. It's got its `dynamic` property
+        // set so that THREE.js knows to update it on each frame.
+        that.mesh = new THREE.ParticleSystem(that.geometry, that.material);
+        that.mesh.dynamic = true;
+    };
+
+    SPE.Group.prototype = {
+
+        /**
+         * Tells the age and alive attributes (and the geometry vertices)
+         * that they need updating by THREE.js's internal tick functions.
+         *
+         * @private
+         *
+         * @return {this}
+         */
+        _flagUpdate: function() {
+            var that = this;
+
+            // Set flags to update (causes less garbage than
+            // ```ParticleSystem.sortParticles = true``` in SPE.THREEr58 at least)
+            that.attributes.age.needsUpdate = true;
+            that.attributes.alive.needsUpdate = true;
+            that.attributes.angle.needsUpdate = true;
+            // that.attributes.angleAlignVelocity.needsUpdate = true;
+            that.attributes.velocity.needsUpdate = true;
+            that.attributes.acceleration.needsUpdate = true;
+            that.geometry.verticesNeedUpdate = true;
+
+            return that;
+        },
+
+        /**
+         * Add an emitter to this particle group. Once added, an emitter will be automatically
+         * updated when SPE.Group#tick() is called.
+         *
+         * @param {SPE.Emitter} emitter
+         * @return {this}
+         */
+        addEmitter: function(emitter) {
+            var that = this;
+
+            if (emitter.duration) {
+                emitter.particlesPerSecond = emitter.particleCount / (that.maxAge < emitter.duration ? that.maxAge : emitter.duration) | 0;
+            } else {
+                emitter.particlesPerSecond = emitter.particleCount / that.maxAge | 0
+            }
+
+            var vertices = that.geometry.vertices,
+                start = vertices.length,
+                end = emitter.particleCount + start,
+                a = that.attributes,
+                acceleration = a.acceleration.value,
+                velocity = a.velocity.value,
+                alive = a.alive.value,
+                age = a.age.value,
+                size = a.size.value,
+                angle = a.angle.value,
+                colorStart = a.colorStart.value,
+                colorMiddle = a.colorMiddle.value,
+                colorEnd = a.colorEnd.value,
+                opacity = a.opacity.value;
+
+            emitter.particleIndex = parseFloat(start);
+
+            // Create the values
+            for (var i = start; i < end; ++i) {
+
+                if (emitter.type === 'sphere') {
+                    vertices[i] = that._randomVector3OnSphere(emitter.position, emitter.radius, emitter.radiusSpread, emitter.radiusScale, emitter.radiusSpreadClamp);
+                    velocity[i] = that._randomVelocityVector3OnSphere(vertices[i], emitter.position, emitter.speed, emitter.speedSpread);
+                } else if (emitter.type === 'disk') {
+                    vertices[i] = that._randomVector3OnDisk(emitter.position, emitter.radius, emitter.radiusSpread, emitter.radiusScale, emitter.radiusSpreadClamp);
+                    velocity[i] = that._randomVelocityVector3OnSphere(vertices[i], emitter.position, emitter.speed, emitter.speedSpread);
+                } else {
+                    vertices[i] = that._randomVector3(emitter.position, emitter.positionSpread);
+                    velocity[i] = that._randomVector3(emitter.velocity, emitter.velocitySpread);
+                }
+
+                acceleration[i] = that._randomVector3(emitter.acceleration, emitter.accelerationSpread);
+
+                size[i] = new THREE.Vector3(
+                    Math.abs(that._randomFloat(emitter.sizeStart, emitter.sizeStartSpread)),
+                    Math.abs(that._randomFloat(emitter.sizeMiddle, emitter.sizeMiddleSpread)),
+                    Math.abs(that._randomFloat(emitter.sizeEnd, emitter.sizeEndSpread))
+                );
+
+                angle[i] = new THREE.Vector4(
+                    that._randomFloat(emitter.angleStart, emitter.angleStartSpread),
+                    that._randomFloat(emitter.angleMiddle, emitter.angleMiddleSpread),
+                    that._randomFloat(emitter.angleEnd, emitter.angleEndSpread),
+                    emitter.angleAlignVelocity ? 1.0 : 0.0
+                );
+
+                age[i] = 0.0;
+                alive[i] = emitter.isStatic ? 1.0 : 0.0;
+
+                colorStart[i] = that._randomColor(emitter.colorStart, emitter.colorStartSpread);
+                colorMiddle[i] = that._randomColor(emitter.colorMiddle, emitter.colorMiddleSpread);
+                colorEnd[i] = that._randomColor(emitter.colorEnd, emitter.colorEndSpread);
+
+                opacity[i] = new THREE.Vector3(
+                    Math.abs(that._randomFloat(emitter.opacityStart, emitter.opacityStartSpread)),
+                    Math.abs(that._randomFloat(emitter.opacityMiddle, emitter.opacityMiddleSpread)),
+                    Math.abs(that._randomFloat(emitter.opacityEnd, emitter.opacityEndSpread))
+                );
+            }
+
+            // Cache properties on the emitter so we can access
+            // them from its tick function.
+            emitter.verticesIndex = parseFloat(start);
+            emitter.attributes = a;
+            emitter.vertices = that.geometry.vertices;
+            emitter.maxAge = that.maxAge;
+
+            // Assign a unique ID to this emitter
+            emitter.__id = that._generateID();
+
+            // Save this emitter in an array for processing during this.tick()
+            if (!emitter.isStatic) {
+                that.emitters.push(emitter);
+            }
+
+            return that;
+        },
+
+
+        removeEmitter: function(emitter) {
+            var id,
+                emitters = this.emitters;
+
+            if (emitter instanceof SPE.Emitter) {
+                id = emitter.__id;
+            } else if (typeof emitter === 'string') {
+                id = emitter;
+            } else {
+                console.warn('Invalid emitter or emitter ID passed to SPE.Group#removeEmitter.');
+                return;
+            }
+
+            for (var i = 0, il = emitters.length; i < il; ++i) {
+                if (emitters[i].__id === id) {
+                    emitters.splice(i, 1);
+                    break;
+                }
+            }
+        },
+
+
+        /**
+         * The main particle group update function. Call this once per frame.
+         *
+         * @param  {Number} dt
+         * @return {this}
+         */
+        tick: function(dt) {
+            var that = this,
+                emitters = that.emitters,
+                numEmitters = emitters.length;
+
+            dt = dt || that.fixedTimeStep;
+
+            if (numEmitters === 0) {
+                return;
+            }
+
+            for (var i = 0; i < numEmitters; ++i) {
+                emitters[i].tick(dt);
+            }
+
+            that._flagUpdate();
+            return that;
+        },
+
+
+        /**
+         * Fetch a single emitter instance from the pool.
+         * If there are no objects in the pool, a new emitter will be
+         * created if specified.
+         *
+         * @return {ShaderParticleEmitter | null}
+         */
+        getFromPool: function() {
+            var that = this,
+                pool = that._pool,
+                createNew = that._createNewWhenPoolEmpty;
+
+            if (pool.length) {
+                return pool.pop();
+            } else if (createNew) {
+                return new SPE.Emitter(that._poolCreationSettings);
+            }
+
+            return null;
+        },
+
+
+        /**
+         * Release an emitter into the pool.
+         *
+         * @param  {ShaderParticleEmitter} emitter
+         * @return {this}
+         */
+        releaseIntoPool: function(emitter) {
+            if (!(emitter instanceof SPE.Emitter)) {
+                console.error('Will not add non-emitter to particle group pool:', emitter);
+                return;
+            }
+
+            emitter.reset();
+            this._pool.unshift(emitter);
+
+            return this;
+        },
+
+
+        /**
+         * Get the pool array
+         *
+         * @return {Array}
+         */
+        getPool: function() {
+            return this._pool;
+        },
+
+
+        /**
+         * Add a pool of emitters to this particle group
+         *
+         * @param {Number} numEmitters      The number of emitters to add to the pool.
+         * @param {Object} emitterSettings  An object describing the settings to pass to each emitter.
+         * @param {Boolean} createNew       Should a new emitter be created if the pool runs out?
+         * @return {this}
+         */
+        addPool: function(numEmitters, emitterSettings, createNew) {
+            var that = this,
+                emitter;
+
+            // Save relevant settings and flags.
+            that._poolCreationSettings = emitterSettings;
+            that._createNewWhenPoolEmpty = !! createNew;
+
+            // Create the emitters, add them to this group and the pool.
+            for (var i = 0; i < numEmitters; ++i) {
+                emitter = new SPE.Emitter(emitterSettings);
+                that.addEmitter(emitter);
+                that.releaseIntoPool(emitter);
+            }
+
+            return that;
+        },
+
+
+        /**
+         * Internal method. Sets a single emitter to be alive
+         *
+         * @private
+         *
+         * @param  {THREE.Vector3} pos
+         * @return {this}
+         */
+        _triggerSingleEmitter: function(pos) {
+            var that = this,
+                emitter = that.getFromPool();
+
+            if (emitter === null) {
+                console.log('SPE.Group pool ran out.');
+                return;
+            }
+
+            // TODO: Should an instanceof check happen here? Or maybe at least a typeof?
+            if (pos) {
+                emitter.position.copy(pos);
+            }
+
+            emitter.enable();
+
+            setTimeout(function() {
+                emitter.disable();
+                that.releaseIntoPool(emitter);
+            }, that.maxAgeMilliseconds);
+
+            return that;
+        },
+
+
+        /**
+         * Set a given number of emitters as alive, with an optional position
+         * vector3 to move them to.
+         *
+         * @param  {Number} numEmitters
+         * @param  {THREE.Vector3} position
+         * @return {this}
+         */
+        triggerPoolEmitter: function(numEmitters, position) {
+            var that = this;
+
+            if (typeof numEmitters === 'number' && numEmitters > 1) {
+                for (var i = 0; i < numEmitters; ++i) {
+                    that._triggerSingleEmitter(position);
+                }
+            } else {
+                that._triggerSingleEmitter(position);
+            }
+
+            return that;
+        }
+    };
+
+
+    // Extend ShaderParticleGroup's prototype with functions from utils object.
+    for (var i in SPE.utils) {
+        SPE.Group.prototype['_' + i] = SPE.utils[i];
+    }
+
+
+    // The all-important shaders
+    SPE.shaders = {
+        vertex: [
+            'uniform float duration;',
+            'uniform int hasPerspective;',
+
+            'attribute vec3 colorStart;',
+            'attribute vec3 colorMiddle;',
+            'attribute vec3 colorEnd;',
+            'attribute vec3 opacity;',
+
+            'attribute vec3 acceleration;',
+            'attribute vec3 velocity;',
+            'attribute float alive;',
+            'attribute float age;',
+
+            'attribute vec3 size;',
+            'attribute vec4 angle;',
+
+            // values to be passed to the fragment shader
+            'varying vec4 vColor;',
+            'varying float vAngle;',
+
+
+            // Integrate acceleration into velocity and apply it to the particle's position
+            'vec4 GetPos() {',
+            'vec3 newPos = vec3( position );',
+
+            // Move acceleration & velocity vectors to the value they
+            // should be at the current age
+            'vec3 a = acceleration * age;',
+            'vec3 v = velocity * age;',
+
+            // Move velocity vector to correct values at this age
+            'v = v + (a * age);',
+
+            // Add velocity vector to the newPos vector
+            'newPos = newPos + v;',
+
+            // Convert the newPos vector into world-space
+            'vec4 mvPosition = modelViewMatrix * vec4( newPos, 1.0 );',
+
+            'return mvPosition;',
+            '}',
+
+
+            'void main() {',
+
+            'float positionInTime = (age / duration);',
+
+            'float lerpAmount1 = (age / (0.5 * duration));', // percentage during first half
+            'float lerpAmount2 = ((age - 0.5 * duration) / (0.5 * duration));', // percentage during second half
+            'float halfDuration = duration / 2.0;',
+            'float pointSize = 0.0;',
+
+            'vAngle = 0.0;',
+
+            'if( alive > 0.5 ) {',
+
+            // lerp the color and opacity
+            'if( positionInTime < 0.5 ) {',
+            'vColor = vec4( mix(colorStart, colorMiddle, lerpAmount1), mix(opacity.x, opacity.y, lerpAmount1) );',
+            '}',
+            'else {',
+            'vColor = vec4( mix(colorMiddle, colorEnd, lerpAmount2), mix(opacity.y, opacity.z, lerpAmount2) );',
+            '}',
+
+
+            // Get the position of this particle so we can use it
+            // when we calculate any perspective that might be required.
+            'vec4 pos = GetPos();',
+
+
+            // Determine the angle we should use for this particle.
+            'if( angle[3] == 1.0 ) {',
+            'vAngle = -atan(pos.y, pos.x);',
+            '}',
+            'else if( positionInTime < 0.5 ) {',
+            'vAngle = mix( angle.x, angle.y, lerpAmount1 );',
+            '}',
+            'else {',
+            'vAngle = mix( angle.y, angle.z, lerpAmount2 );',
+            '}',
+
+            // Determine point size.
+            'if( positionInTime < 0.5) {',
+            'pointSize = mix( size.x, size.y, lerpAmount1 );',
+            '}',
+            'else {',
+            'pointSize = mix( size.y, size.z, lerpAmount2 );',
+            '}',
+
+
+            'if( hasPerspective == 1 ) {',
+            'pointSize = pointSize * ( 300.0 / length( pos.xyz ) );',
+            '}',
+
+            // Set particle size and position
+            'gl_PointSize = pointSize;',
+            'gl_Position = projectionMatrix * pos;',
+            '}',
+
+            'else {',
+            // Hide particle and set its position to the (maybe) glsl
+            // equivalent of Number.POSITIVE_INFINITY
+            'vColor = vec4( 0.0, 0.0, 0.0, 0.0 );',
+            'gl_Position = vec4(1000000000.0, 1000000000.0, 1000000000.0, 0.0);',
+            '}',
+            '}',
+        ].join('\n'),
+
+        fragment: [
+            'uniform sampler2D texture;',
+            'uniform int colorize;',
+
+            'varying vec4 vColor;',
+            'varying float vAngle;',
+
+            'void main() {',
+            'float c = cos(vAngle);',
+            'float s = sin(vAngle);',
+
+            'vec2 rotatedUV = vec2(c * (gl_PointCoord.x - 0.5) + s * (gl_PointCoord.y - 0.5) + 0.5,',
+            'c * (gl_PointCoord.y - 0.5) - s * (gl_PointCoord.x - 0.5) + 0.5);',
+
+            'vec4 rotatedTexture = texture2D( texture, rotatedUV );',
+
+            'if( colorize == 1 ) {',
+            'gl_FragColor = vColor * rotatedTexture;',
+            '}',
+            'else {',
+            'gl_FragColor = rotatedTexture;',
+            '}',
+            '}'
+        ].join('\n')
+    };
+    // ShaderParticleEmitter 0.7.4
+    //
+    // (c) 2013 Luke Moody (http://www.github.com/squarefeet)
+    //     & Lee Stemkoski (http://www.adelphi.edu/~stemkoski/)
+    //
+    // Based on Lee Stemkoski's original work:
+    //    (https://github.com/stemkoski/stemkoski.github.com/blob/master/Three.js/js/ParticleEngine.js).
+    //
+    // ShaderParticleEmitter may be freely distributed under the MIT license (See LICENSE.txt)
+
+    var SPE = SPE || {};
+
+    SPE.Emitter = function(options) {
+        // If no options are provided, fallback to an empty object.
+        options = options || {};
+
+        // Helps with minification. Not as easy to read the following code,
+        // but should still be readable enough!
+        var that = this;
+
+
+        that.particleCount = typeof options.particleCount === 'number' ? options.particleCount : 100;
+        that.type = (options.type === 'cube' || options.type === 'sphere' || options.type === 'disk') ? options.type : 'cube';
+
+        that.position = options.position instanceof THREE.Vector3 ? options.position : new THREE.Vector3();
+        that.positionSpread = options.positionSpread instanceof THREE.Vector3 ? options.positionSpread : new THREE.Vector3();
+
+        // These two properties are only used when this.type === 'sphere' or 'disk'
+        that.radius = typeof options.radius === 'number' ? options.radius : 10;
+        that.radiusSpread = typeof options.radiusSpread === 'number' ? options.radiusSpread : 0;
+        that.radiusScale = options.radiusScale instanceof THREE.Vector3 ? options.radiusScale : new THREE.Vector3(1, 1, 1);
+        that.radiusSpreadClamp = typeof options.radiusSpreadClamp === 'number' ? options.radiusSpreadClamp : 0;
+
+        that.acceleration = options.acceleration instanceof THREE.Vector3 ? options.acceleration : new THREE.Vector3();
+        that.accelerationSpread = options.accelerationSpread instanceof THREE.Vector3 ? options.accelerationSpread : new THREE.Vector3();
+
+        that.velocity = options.velocity instanceof THREE.Vector3 ? options.velocity : new THREE.Vector3();
+        that.velocitySpread = options.velocitySpread instanceof THREE.Vector3 ? options.velocitySpread : new THREE.Vector3();
+
+
+        // And again here; only used when this.type === 'sphere' or 'disk'
+        that.speed = parseFloat(typeof options.speed === 'number' ? options.speed : 0.0);
+        that.speedSpread = parseFloat(typeof options.speedSpread === 'number' ? options.speedSpread : 0.0);
+
+
+        // Sizes
+        that.sizeStart = parseFloat(typeof options.sizeStart === 'number' ? options.sizeStart : 1.0);
+        that.sizeStartSpread = parseFloat(typeof options.sizeStartSpread === 'number' ? options.sizeStartSpread : 0.0);
+
+        that.sizeEnd = parseFloat(typeof options.sizeEnd === 'number' ? options.sizeEnd : that.sizeStart);
+        that.sizeEndSpread = parseFloat(typeof options.sizeEndSpread === 'number' ? options.sizeEndSpread : 0.0);
+
+        that.sizeMiddle = parseFloat(
+            typeof options.sizeMiddle !== 'undefined' ?
+            options.sizeMiddle :
+            Math.abs(that.sizeEnd + that.sizeStart) / 2
+        );
+        that.sizeMiddleSpread = parseFloat(typeof options.sizeMiddleSpread === 'number' ? options.sizeMiddleSpread : 0);
+
+
+        // Angles
+        that.angleStart = parseFloat(typeof options.angleStart === 'number' ? options.angleStart : 0);
+        that.angleStartSpread = parseFloat(typeof options.angleStartSpread === 'number' ? options.angleStartSpread : 0);
+
+        that.angleEnd = parseFloat(typeof options.angleEnd === 'number' ? options.angleEnd : 0);
+        that.angleEndSpread = parseFloat(typeof options.angleEndSpread === 'number' ? options.angleEndSpread : 0);
+
+        that.angleMiddle = parseFloat(
+            typeof options.angleMiddle !== 'undefined' ?
+            options.angleMiddle :
+            Math.abs(that.angleEnd + that.angleStart) / 2
+        );
+        that.angleMiddleSpread = parseFloat(typeof options.angleMiddleSpread === 'number' ? options.angleMiddleSpread : 0);
+
+        that.angleAlignVelocity = options.angleAlignVelocity || false;
+
+
+        // Colors
+        that.colorStart = options.colorStart instanceof THREE.Color ? options.colorStart : new THREE.Color('white');
+        that.colorStartSpread = options.colorStartSpread instanceof THREE.Vector3 ? options.colorStartSpread : new THREE.Vector3();
+
+        that.colorEnd = options.colorEnd instanceof THREE.Color ? options.colorEnd : that.colorStart.clone();
+        that.colorEndSpread = options.colorEndSpread instanceof THREE.Vector3 ? options.colorEndSpread : new THREE.Vector3();
+
+        that.colorMiddle =
+            options.colorMiddle instanceof THREE.Color ?
+            options.colorMiddle :
+            new THREE.Color().addColors(that.colorStart, that.colorEnd).multiplyScalar(0.5);
+        that.colorMiddleSpread = options.colorMiddleSpread instanceof THREE.Vector3 ? options.colorMiddleSpread : new THREE.Vector3();
+
+
+
+        // Opacities
+        that.opacityStart = parseFloat(typeof options.opacityStart !== 'undefined' ? options.opacityStart : 1);
+        that.opacityStartSpread = parseFloat(typeof options.opacityStartSpread !== 'undefined' ? options.opacityStartSpread : 0);
+
+        that.opacityEnd = parseFloat(typeof options.opacityEnd === 'number' ? options.opacityEnd : 0);
+        that.opacityEndSpread = parseFloat(typeof options.opacityEndSpread !== 'undefined' ? options.opacityEndSpread : 0);
+
+        that.opacityMiddle = parseFloat(
+            typeof options.opacityMiddle !== 'undefined' ?
+            options.opacityMiddle :
+            Math.abs(that.opacityEnd + that.opacityStart) / 2
+        );
+        that.opacityMiddleSpread = parseFloat(typeof options.opacityMiddleSpread === 'number' ? options.opacityMiddleSpread : 0);
+
+
+        // Generic
+        that.duration = typeof options.duration === 'number' ? options.duration : null;
+        that.alive = parseInt(typeof options.alive === 'number' ? options.alive : 1, 10);
+        that.isStatic = typeof options.isStatic === 'number' ? options.isStatic : 0;
+
+        // The following properties are used internally, and mostly set when this emitter
+        // is added to a particle group.
+        that.particlesPerSecond = 0;
+        that.attributes = null;
+        that.vertices = null;
+        that.verticesIndex = 0;
+        that.age = 0.0;
+        that.maxAge = 0.0;
+
+        that.particleIndex = 0.0;
+
+        that.__id = null;
+
+        that.userData = {};
+    };
+
+    SPE.Emitter.prototype = {
+
+        /**
+         * Reset a particle's position. Accounts for emitter type and spreads.
+         *
+         * @private
+         *
+         * @param  {THREE.Vector3} p
+         */
+        _resetParticle: function(i) {
+            var that = this,
+                type = that.type,
+                spread = that.positionSpread,
+                particlePosition = that.vertices[i],
+                a = that.attributes,
+                particleVelocity = a.velocity.value[i],
+
+                vSpread = that.velocitySpread,
+                aSpread = that.accelerationSpread;
+
+            // Optimise for no position spread or radius
+            if (
+                (type === 'cube' && spread.x === 0 && spread.y === 0 && spread.z === 0) ||
+                (type === 'sphere' && that.radius === 0) ||
+                (type === 'disk' && that.radius === 0)
+            ) {
+                particlePosition.copy(that.position);
+                that._randomizeExistingVector3(particleVelocity, that.velocity, vSpread);
+
+                if (type === 'cube') {
+                    that._randomizeExistingVector3(that.attributes.acceleration.value[i], that.acceleration, aSpread);
+                }
+            }
+
+            // If there is a position spread, then get a new position based on this spread.
+            else if (type === 'cube') {
+                that._randomizeExistingVector3(particlePosition, that.position, spread);
+                that._randomizeExistingVector3(particleVelocity, that.velocity, vSpread);
+                that._randomizeExistingVector3(that.attributes.acceleration.value[i], that.acceleration, aSpread);
+            } else if (type === 'sphere') {
+                that._randomizeExistingVector3OnSphere(particlePosition, that.position, that.radius, that.radiusSpread, that.radiusScale, that.radiusSpreadClamp);
+                that._randomizeExistingVelocityVector3OnSphere(particleVelocity, that.position, particlePosition, that.speed, that.speedSpread);
+            } else if (type === 'disk') {
+                that._randomizeExistingVector3OnDisk(particlePosition, that.position, that.radius, that.radiusSpread, that.radiusScale, that.radiusSpreadClamp);
+                that._randomizeExistingVelocityVector3OnSphere(particleVelocity, that.position, particlePosition, that.speed, that.speedSpread);
+            }
+        },
+
+        /**
+         * Update this emitter's particle's positions. Called by the SPE.Group
+         * that this emitter belongs to.
+         *
+         * @param  {Number} dt
+         */
+        tick: function(dt) {
+
+            if (this.isStatic) {
+                return;
+            }
+
+            // Cache some values for quicker access in loops.
+            var that = this,
+                a = that.attributes,
+                alive = a.alive.value,
+                age = a.age.value,
+                start = that.verticesIndex,
+                particleCount = that.particleCount,
+                end = start + particleCount,
+                pps = that.particlesPerSecond,
+                ppsdt = pps * dt,
+                m = that.maxAge,
+                emitterAge = that.age,
+                duration = that.duration,
+                pIndex = that.particleIndex;
+
+            // Loop through all the particles in this emitter and
+            // determine whether they're still alive and need advancing
+            // or if they should be dead and therefore marked as such.
+            for (var i = start; i < end; ++i) {
+                if (alive[i] === 1.0) {
+                    age[i] += dt;
+                }
+
+                if (age[i] >= m) {
+                    age[i] = 0.0;
+                    alive[i] = 0.0;
+                }
+            }
+
+            // If the emitter is dead, reset any particles that are in
+            // the recycled vertices array and reset the age of the
+            // emitter to zero ready to go again if required, then
+            // exit this function.
+            if (that.alive === 0) {
+                that.age = 0.0;
+                return;
+            }
+
+            // If the emitter has a specified lifetime and we've exceeded it,
+            // mark the emitter as dead and exit this function.
+            if (typeof duration === 'number' && emitterAge > duration) {
+                that.alive = 0;
+                that.age = 0.0;
+                return;
+            }
+
+            var n = Math.max(Math.min(end, pIndex + ppsdt), 0);
+
+            for (i = pIndex | 0; i < n; ++i) {
+                if (alive[i] !== 1.0) {
+                    alive[i] = 1.0;
+                    that._resetParticle(i);
+                }
+            }
+
+            that.particleIndex += ppsdt;
+
+            if (that.particleIndex < 0.0) {
+                that.particleIndex = 0.0;
+            }
+
+            if (pIndex >= start + particleCount) {
+                that.particleIndex = parseFloat(start);
+            }
+
+            // Add the delta time value to the age of the emitter.
+            that.age += dt;
+
+            if (that.age < 0.0) {
+                that.age = 0.0;
+            }
+        },
+
+        /**
+         * Reset this emitter back to its starting position.
+         * If `force` is truthy, then reset all particles in this
+         * emitter as well, even if they're currently alive.
+         *
+         * @param  {Boolean} force
+         * @return {this}
+         */
+        reset: function(force) {
+            var that = this;
+
+            that.age = 0.0;
+            that.alive = 0;
+
+            if (force) {
+                var start = that.verticesIndex,
+                    end = that.verticesIndex + that.particleCount,
+                    a = that.attributes,
+                    alive = a.alive.value,
+                    age = a.age.value;
+
+                for (var i = start; i < end; ++i) {
+                    alive[i] = 0.0;
+                    age[i] = 0.0;
+                }
+            }
+
+            return that;
+        },
+
+
+        /**
+         * Enable this emitter.
+         */
+        enable: function() {
+            this.alive = 1;
+        },
+
+        /**
+         * Disable this emitter.
+         */
+        disable: function() {
+            this.alive = 0;
+        }
+    };
+
+    // Extend SPE.Emitter's prototype with functions from utils object.
+    for (var i in SPE.utils) {
+        SPE.Emitter.prototype['_' + i] = SPE.utils[i];
+    }
+
+
+
+    return SPE;
+};
+},{}],3:[function(require,module,exports){
 var inherits = require('inherits');
 var EventEmitter = require('events').EventEmitter;
 
-module.exports = function (game) {
-    return function (obj, opts) {
+module.exports = function(game) {
+    return function(obj, opts) {
         return new Creature(game, obj, opts);
     };
 };
@@ -375,38 +1626,46 @@ inherits(Creature, EventEmitter);
 
 module.exports.Creature = Creature;
 
-function Creature (game, obj, opts) {
+function Creature(game, obj, opts) {
     this.game = game;
 
     if (!opts) opts = {};
     opts.size = opts.size || this.game.cubeSize;
-    opts.velocity = opts.velocity || {x:0,y:0,z:0};
+    opts.velocity = opts.velocity || {
+        x: 0,
+        y: 0,
+        z: 0
+    };
     opts.mesh = obj;
     this.item = this.game.addItem(opts);
-    
+
     this.position = this.item.yaw.position;
     this.rotation = this.item.yaw.rotation;
 }
 
-Creature.prototype.jump = function (x) {
-    if (x === undefined) x = 0.02;
-    this.move(0, x, 0);
+Creature.prototype.jump = function(x) {
+    //if (x === undefined) x = 0.02;
+    //this.move(0, x, 0);
 };
 
-Creature.prototype.move = function (x, y, z) {
+Creature.prototype.move = function(x, y, z) {
     var game = this.game;
     var T = game.THREE;
-    
+
     if (typeof x === 'object' && Array.isArray(x)) {
-        y = x[1]; z = x[2]; x = x[0];
+        y = x[1];
+        z = x[2];
+        x = x[0];
     }
     if (typeof x === 'object') {
-        y = x.y; z = x.z; x = x.x;
+        y = x.y;
+        z = x.z;
+        x = x.x;
     }
     this.item.velocity.x = x;
     this.item.velocity.y = y;
     this.item.velocity.z = z;
-    
+
     if (this.item.velocity.y === 0) {
         var angle = this.rotation.y;
         var pt = this.position.clone();
@@ -416,41 +1675,37 @@ Creature.prototype.move = function (x, y, z) {
     }
 };
 
-Creature.prototype.lookAt = function (obj) {
+Creature.prototype.lookAt = function(obj) {
     var a = obj.position || obj;
     var b = this.position;
-    
-    this.item.yaw.rotation.y = Math.atan2(a.x - b.x, a.z - b.z)
-        + Math.random() * 1 / 4 - 1 / 8
-    ;
+
+    this.item.yaw.rotation.y = Math.atan2(a.x - b.x, a.z - b.z) + Math.random() * 1 / 4 - 1 / 8;
 };
 
-Creature.prototype.notice = function (target, opts) {
+Creature.prototype.notice = function(target, opts) {
     var self = this;
     if (!opts) opts = {};
     if (opts.radius === undefined) opts.radius = 50;
     if (opts.collisionRadius === undefined) opts.collisionRadius = 2;
     if (opts.interval === undefined) opts.interval = 1000;
     var pos = target.position || target;
-    
-    return setInterval(function () {
+
+    return setInterval(function() {
         var dist = self.position.distanceTo(pos);
         if (dist < opts.collisionRadius) {
             self.emit('collide', target);
         }
-        
+
         if (dist < opts.radius) {
             self.noticed = true;
             self.emit('notice', target);
-        }
-        else {
+        } else {
             self.noticed = false;
             self.emit('frolic', target);
         }
     }, opts.interval);
 };
-
-},{"events":70,"inherits":3}],3:[function(require,module,exports){
+},{"events":71,"inherits":4}],4:[function(require,module,exports){
 module.exports = inherits
 
 function inherits (c, p, proto) {
@@ -481,7 +1736,7 @@ function inherits (c, p, proto) {
 //inherits(Child, Parent)
 //new Child
 
-},{}],4:[function(require,module,exports){
+},{}],5:[function(require,module,exports){
 var inherits = require('inherits');
 var lsb = require('lsb');
 var voxelMesh = require('voxel-engine/node_modules/voxel-mesh');
@@ -639,7 +1894,7 @@ function load(image) {
 
     return text.slice(15);
 };
-},{"inherits":5,"lsb":6,"voxel-creature":2,"voxel-engine/node_modules/voxel":43,"voxel-engine/node_modules/voxel-mesh":35}],5:[function(require,module,exports){
+},{"inherits":6,"lsb":7,"voxel-creature":3,"voxel-engine/node_modules/voxel":44,"voxel-engine/node_modules/voxel-mesh":36}],6:[function(require,module,exports){
 if (typeof Object.create === 'function') {
   // implementation from standard node.js 'util' module
   module.exports = function inherits(ctor, superCtor) {
@@ -664,7 +1919,7 @@ if (typeof Object.create === 'function') {
   }
 }
 
-},{}],6:[function(require,module,exports){
+},{}],7:[function(require,module,exports){
 var spaceCode = ' '.charCodeAt(0)
 
 function stringToBits(str) {
@@ -778,7 +2033,7 @@ module.exports = {
 , stringToBits: stringToBits
 }
 
-},{}],7:[function(require,module,exports){
+},{}],8:[function(require,module,exports){
 var process=require("__browserify_process");var voxel = require('voxel')
 var voxelMesh = require('voxel-mesh')
 var ray = require('voxel-raycast')
@@ -1513,7 +2768,7 @@ Game.prototype.destroy = function() {
   clearInterval(this.timer)
 }
 
-},{"./lib/detector":8,"./lib/stats":9,"__browserify_process":79,"aabb-3d":10,"collide-3d-tilemap":11,"events":70,"gl-matrix":12,"inherits":13,"interact":14,"kb-controls":23,"path":71,"pin-it":28,"raf":29,"spatial-events":30,"three":32,"tic":33,"voxel":43,"voxel-control":34,"voxel-mesh":35,"voxel-physical":36,"voxel-raycast":37,"voxel-region-change":38,"voxel-texture":39,"voxel-view":41}],8:[function(require,module,exports){
+},{"./lib/detector":9,"./lib/stats":10,"__browserify_process":80,"aabb-3d":11,"collide-3d-tilemap":12,"events":71,"gl-matrix":13,"inherits":14,"interact":15,"kb-controls":24,"path":72,"pin-it":29,"raf":30,"spatial-events":31,"three":33,"tic":34,"voxel":44,"voxel-control":35,"voxel-mesh":36,"voxel-physical":37,"voxel-raycast":38,"voxel-region-change":39,"voxel-texture":40,"voxel-view":42}],9:[function(require,module,exports){
 /**
  * @author alteredq / http://alteredqualia.com/
  * @author mr.doob / http://mrdoob.com/
@@ -1574,7 +2829,7 @@ module.exports = function() {
   };
 }
 
-},{}],9:[function(require,module,exports){
+},{}],10:[function(require,module,exports){
 /**
  * @author mrdoob / http://mrdoob.com/
  */
@@ -1720,7 +2975,7 @@ var Stats = function () {
 };
 
 module.exports = Stats
-},{}],10:[function(require,module,exports){
+},{}],11:[function(require,module,exports){
 module.exports = AABB
 
 var vec3 = require('gl-matrix').vec3
@@ -1819,7 +3074,7 @@ proto.union = function(aabb) {
   return new AABB([base_x, base_y, base_z], [max_x - base_x, max_y - base_y, max_z - base_z])
 }
 
-},{"gl-matrix":12}],11:[function(require,module,exports){
+},{"gl-matrix":13}],12:[function(require,module,exports){
 module.exports = function(field, tilesize, dimensions, offset) {
   dimensions = dimensions || [ 
     Math.sqrt(field.length) >> 0
@@ -1908,7 +3163,7 @@ module.exports = function(field, tilesize, dimensions, offset) {
   }  
 }
 
-},{}],12:[function(require,module,exports){
+},{}],13:[function(require,module,exports){
 /**
  * @fileoverview gl-matrix - High performance matrix and vector operations
  * @author Brandon Jones
@@ -4981,9 +6236,9 @@ if(typeof(exports) !== 'undefined') {
   })(shim.exports);
 })();
 
-},{}],13:[function(require,module,exports){
-module.exports=require(3)
 },{}],14:[function(require,module,exports){
+module.exports=require(4)
+},{}],15:[function(require,module,exports){
 var lock = require('pointer-lock')
   , drag = require('drag-stream')
   , full = require('fullscreen')
@@ -5090,7 +6345,7 @@ function usedrag(el) {
   return ee
 }
 
-},{"drag-stream":15,"events":70,"fullscreen":21,"pointer-lock":22,"stream":72}],15:[function(require,module,exports){
+},{"drag-stream":16,"events":71,"fullscreen":22,"pointer-lock":23,"stream":73}],16:[function(require,module,exports){
 module.exports = dragstream
 
 var Stream = require('stream')
@@ -5158,10 +6413,10 @@ function dragstream(el) {
   }
 }
 
-},{"domnode-dom":16,"stream":72,"through":20}],16:[function(require,module,exports){
+},{"domnode-dom":17,"stream":73,"through":21}],17:[function(require,module,exports){
 module.exports = require('./lib/index')
 
-},{"./lib/index":17}],17:[function(require,module,exports){
+},{"./lib/index":18}],18:[function(require,module,exports){
 var WriteStream = require('./writable')
   , ReadStream = require('./readable')
   , DOMStream = {}
@@ -5199,7 +6454,7 @@ DOMStream.createEventStream = function(el, type, preventDefault) {
 module.exports = DOMStream
 
 
-},{"./readable":18,"./writable":19}],18:[function(require,module,exports){
+},{"./readable":19,"./writable":20}],19:[function(require,module,exports){
 module.exports = DOMStream
 
 var Stream = require('stream').Stream
@@ -5310,7 +6565,7 @@ function valueFromElement(el) {
   return el.value
 }
 
-},{"stream":72}],19:[function(require,module,exports){
+},{"stream":73}],20:[function(require,module,exports){
 module.exports = DOMStream
 
 var Stream = require('stream').Stream
@@ -5392,7 +6647,7 @@ proto.constructTextPlain = function(data) {
   return [textNode]
 }
 
-},{"stream":72}],20:[function(require,module,exports){
+},{"stream":73}],21:[function(require,module,exports){
 var process=require("__browserify_process");var Stream = require('stream')
 
 // through
@@ -5492,7 +6747,7 @@ function through (write, end) {
 }
 
 
-},{"__browserify_process":79,"stream":72}],21:[function(require,module,exports){
+},{"__browserify_process":80,"stream":73}],22:[function(require,module,exports){
 module.exports = fullscreen
 fullscreen.available = available
 
@@ -5583,7 +6838,7 @@ function shim(el) {
     el.oRequestFullScreen)
 }
 
-},{"events":70}],22:[function(require,module,exports){
+},{"events":71}],23:[function(require,module,exports){
 module.exports = pointer
 
 pointer.available = available
@@ -5747,7 +7002,7 @@ function shim(el) {
     null
 }
 
-},{"events":70,"stream":72}],23:[function(require,module,exports){
+},{"events":71,"stream":73}],24:[function(require,module,exports){
 var ever = require('ever')
   , vkey = require('vkey')
   , max = Math.max
@@ -5844,7 +7099,7 @@ module.exports = function(el, bindings, state) {
   }
 }
 
-},{"ever":24,"vkey":27}],24:[function(require,module,exports){
+},{"ever":25,"vkey":28}],25:[function(require,module,exports){
 var EventEmitter = require('events').EventEmitter;
 
 module.exports = function (elem) {
@@ -5956,7 +7211,7 @@ Ever.typeOf = (function () {
     };
 })();;
 
-},{"./init.json":25,"./types.json":26,"events":70}],25:[function(require,module,exports){
+},{"./init.json":26,"./types.json":27,"events":71}],26:[function(require,module,exports){
 module.exports={
   "initEvent" : [
     "type",
@@ -5999,7 +7254,7 @@ module.exports={
   ]
 }
 
-},{}],26:[function(require,module,exports){
+},{}],27:[function(require,module,exports){
 module.exports={
   "MouseEvent" : [
     "click",
@@ -6044,7 +7299,7 @@ module.exports={
   ]
 }
 
-},{}],27:[function(require,module,exports){
+},{}],28:[function(require,module,exports){
 var ua = typeof window !== 'undefined' ? window.navigator.userAgent : ''
   , isOSX = /OS X/.test(ua)
   , isOpera = /Opera/.test(ua)
@@ -6182,7 +7437,7 @@ for(i = 112; i < 136; ++i) {
   output[i] = 'F'+(i-111)
 }
 
-},{}],28:[function(require,module,exports){
+},{}],29:[function(require,module,exports){
 module.exports = pin
 
 var pins = {}
@@ -6264,7 +7519,7 @@ function pin(item, every, obj, name) {
   }
 }
 
-},{}],29:[function(require,module,exports){
+},{}],30:[function(require,module,exports){
 module.exports = raf
 
 var EE = require('events').EventEmitter
@@ -6311,7 +7566,7 @@ function raf(el) {
 raf.polyfill = _raf
 raf.now = function() { return Date.now() }
 
-},{"events":70}],30:[function(require,module,exports){
+},{"events":71}],31:[function(require,module,exports){
 module.exports = SpatialEventEmitter
 
 var slice = [].slice
@@ -6443,7 +7698,7 @@ function finite(bbox) {
          isFinite(bbox.z1())
 }
 
-},{"./tree":31,"aabb-3d":10}],31:[function(require,module,exports){
+},{"./tree":32,"aabb-3d":11}],32:[function(require,module,exports){
 module.exports = Tree
 
 var aabb = require('aabb-3d')
@@ -6569,7 +7824,7 @@ proto.send = function(event, bbox, args) {
   }
 }
 
-},{"aabb-3d":10}],32:[function(require,module,exports){
+},{"aabb-3d":11}],33:[function(require,module,exports){
 var process=require("__browserify_process");var self = self || {};
 
 // High-resulution counter: emulate window.performance.now() for THREE.CLOCK
@@ -43527,7 +44782,7 @@ if (typeof exports !== 'undefined') {
   this['THREE'] = THREE;
 }
 
-},{"__browserify_process":79}],33:[function(require,module,exports){
+},{"__browserify_process":80}],34:[function(require,module,exports){
 /*
  * tic
  * https://github.com/shama/tic
@@ -43574,7 +44829,7 @@ Tic.prototype.tick = function(dt) {
   });
 };
 
-},{}],34:[function(require,module,exports){
+},{}],35:[function(require,module,exports){
 module.exports = control
 
 var Stream = require('stream').Stream
@@ -43857,7 +45112,7 @@ function clamp(value, to) {
   return isFinite(to) ? max(min(value, to), -to) : value
 }
 
-},{"stream":72}],35:[function(require,module,exports){
+},{"stream":73}],36:[function(require,module,exports){
 var THREE = require('three')
 
 module.exports = function(data, mesher, scaleFactor, three) {
@@ -44027,7 +45282,7 @@ Mesh.prototype.faceVertexUv = function(i) {
 }
 ;
 
-},{"three":32}],36:[function(require,module,exports){
+},{"three":33}],37:[function(require,module,exports){
 module.exports = physical
 
 var aabb = require('aabb-3d')
@@ -44246,7 +45501,7 @@ proto.atRestZ = function() {
   return this.resting.z
 }
 
-},{"aabb-3d":10,"three":32}],37:[function(require,module,exports){
+},{"aabb-3d":11,"three":33}],38:[function(require,module,exports){
 "use strict"
 
 function traceRay_impl(
@@ -44468,7 +45723,7 @@ function traceRay(voxels, origin, direction, max_d, hit_pos, hit_norm, EPSILON) 
 }
 
 module.exports = traceRay
-},{}],38:[function(require,module,exports){
+},{}],39:[function(require,module,exports){
 module.exports = coordinates
 
 var aabb = require('aabb-3d')
@@ -44496,7 +45751,7 @@ function coordinates(spatial, box, regionWidth) {
  
   return emitter
 }
-},{"aabb-3d":10,"events":70}],39:[function(require,module,exports){
+},{"aabb-3d":11,"events":71}],40:[function(require,module,exports){
 var tic = require('tic')();
 var createAtlas = require('atlaspack');
 
@@ -44883,7 +46138,7 @@ function memoize(func) {
   return memoized;
 }
 
-},{"atlaspack":40,"tic":33}],40:[function(require,module,exports){
+},{"atlaspack":41,"tic":34}],41:[function(require,module,exports){
 /*
  * atlaspack
  * https://github.com/shama/atlaspack
@@ -45141,7 +46396,7 @@ Atlas.prototype._debug = function() {
   });
 };
 
-},{}],41:[function(require,module,exports){
+},{}],42:[function(require,module,exports){
 var process=require("__browserify_process");var THREE, temporaryPosition, temporaryVector
 
 module.exports = function(three, opts) {
@@ -45229,7 +46484,7 @@ View.prototype.appendTo = function(element) {
 
   this.resizeWindow(this.width,this.height)
 }
-},{"__browserify_process":79}],42:[function(require,module,exports){
+},{"__browserify_process":80}],43:[function(require,module,exports){
 var events = require('events')
 var inherits = require('inherits')
 
@@ -45366,7 +46621,7 @@ Chunker.prototype.voxelVector = function(pos) {
   return [vx, vy, vz]
 };
 
-},{"events":70,"inherits":13}],43:[function(require,module,exports){
+},{"events":71,"inherits":14}],44:[function(require,module,exports){
 var chunker = require('./chunker')
 
 module.exports = function(opts) {
@@ -45462,7 +46717,7 @@ module.exports.generateExamples = function() {
 }
 
 
-},{"./chunker":42,"./meshers/culled":44,"./meshers/greedy":45,"./meshers/monotone":46,"./meshers/stupid":47}],44:[function(require,module,exports){
+},{"./chunker":43,"./meshers/culled":45,"./meshers/greedy":46,"./meshers/monotone":47,"./meshers/stupid":48}],45:[function(require,module,exports){
 //Naive meshing (with face culling)
 function CulledMesh(volume, dims) {
   //Precalculate direction vectors for convenience
@@ -45514,7 +46769,7 @@ if(exports) {
   exports.mesher = CulledMesh;
 }
 
-},{}],45:[function(require,module,exports){
+},{}],46:[function(require,module,exports){
 var GreedyMesh = (function() {
 //Cache buffer internally
 var mask = new Int32Array(4096);
@@ -45631,7 +46886,7 @@ if(exports) {
   exports.mesher = GreedyMesh;
 }
 
-},{}],46:[function(require,module,exports){
+},{}],47:[function(require,module,exports){
 "use strict";
 
 var MonotoneMesh = (function(){
@@ -45884,7 +47139,7 @@ if(exports) {
   exports.mesher = MonotoneMesh;
 }
 
-},{}],47:[function(require,module,exports){
+},{}],48:[function(require,module,exports){
 //The stupidest possible way to generate a Minecraft mesh (I think)
 function StupidMesh(volume, dims) {
   var vertices = [], faces = [], x = [0,0,0], n = 0;
@@ -45920,7 +47175,7 @@ if(exports) {
   exports.mesher = StupidMesh;
 }
 
-},{}],48:[function(require,module,exports){
+},{}],49:[function(require,module,exports){
 var skin = require('minecraft-skin');
 
 module.exports = function (game) {
@@ -46000,7 +47255,7 @@ function parseXYZ (x, y, z) {
     return { x: Number(x), y: Number(y), z: Number(z) };
 }
 
-},{"minecraft-skin":49}],49:[function(require,module,exports){
+},{"minecraft-skin":50}],50:[function(require,module,exports){
 var THREE
 
 module.exports = function(three, image, sizeRatio) {
@@ -46372,7 +47627,7 @@ Skin.prototype.createPlayerObject = function(scene) {
   playerGroup.scale = this.scale
   return playerGroup
 }
-},{}],50:[function(require,module,exports){
+},{}],51:[function(require,module,exports){
 module.exports = function(game) {
   var THREE = game.THREE
     , EffectComposer = Composer.EffectComposer = require('three-effectcomposer')(THREE)
@@ -46441,7 +47696,7 @@ module.exports = function(game) {
   return composer
 };
 
-},{"three-effectcomposer":51}],51:[function(require,module,exports){
+},{"three-effectcomposer":52}],52:[function(require,module,exports){
 /**
  * @author alteredq / http://alteredqualia.com/
  */
@@ -46593,7 +47848,7 @@ module.exports = function(THREE) {
 
   return EffectComposer
 };
-},{"./lib/bloompass":52,"./lib/clearmaskpass":53,"./lib/convolutionshader":54,"./lib/filmpass":55,"./lib/filmshader":56,"./lib/maskpass":57,"./lib/renderpass":58,"./lib/shaderextras":59,"./lib/shaderpass":60,"three-copyshader":61}],52:[function(require,module,exports){
+},{"./lib/bloompass":53,"./lib/clearmaskpass":54,"./lib/convolutionshader":55,"./lib/filmpass":56,"./lib/filmshader":57,"./lib/maskpass":58,"./lib/renderpass":59,"./lib/shaderextras":60,"./lib/shaderpass":61,"three-copyshader":62}],53:[function(require,module,exports){
 /**
  * @author alteredq / http://alteredqualia.com/
  */
@@ -46708,7 +47963,7 @@ BloomPass.prototype = {
 
 }
 
-},{}],53:[function(require,module,exports){
+},{}],54:[function(require,module,exports){
 /**
  * @author alteredq / http://alteredqualia.com/
  */
@@ -46728,7 +47983,7 @@ module.exports = function(THREE) {
 
   return ClearMaskPass
 };
-},{}],54:[function(require,module,exports){
+},{}],55:[function(require,module,exports){
 /**
  * @author alteredq / http://alteredqualia.com/
  *
@@ -46834,7 +48089,7 @@ module.exports = function(THREE) {
 
 };
 
-},{}],55:[function(require,module,exports){
+},{}],56:[function(require,module,exports){
 /**
  * @author alteredq / http://alteredqualia.com/
  */
@@ -46893,7 +48148,7 @@ module.exports = function(THREE, EffectComposer) {
 
 	return FilmPass
 }
-},{}],56:[function(require,module,exports){
+},{}],57:[function(require,module,exports){
 /**
  * @author alteredq / http://alteredqualia.com/
  *
@@ -46999,7 +48254,7 @@ module.exports = {
 
 };
 
-},{}],57:[function(require,module,exports){
+},{}],58:[function(require,module,exports){
 /**
  * @author alteredq / http://alteredqualia.com/
  */
@@ -47072,7 +48327,7 @@ module.exports = function(THREE) {
   return MaskPass
 };
 
-},{}],58:[function(require,module,exports){
+},{}],59:[function(require,module,exports){
 /**
  * @author alteredq / http://alteredqualia.com/
  */
@@ -47131,7 +48386,7 @@ module.exports = function(THREE) {
 
 };
 
-},{}],59:[function(require,module,exports){
+},{}],60:[function(require,module,exports){
 /**
  * @author alteredq / http://alteredqualia.com/
  * @author zz85 / http://www.lab4games.net/zz85/blog
@@ -48917,7 +50172,7 @@ module.exports = function(THREE) {
 
 }
 
-},{}],60:[function(require,module,exports){
+},{}],61:[function(require,module,exports){
 /**
  * @author alteredq / http://alteredqualia.com/
  */
@@ -48975,7 +50230,7 @@ module.exports = function(THREE, EffectComposer) {
   return ShaderPass;
 
 };
-},{}],61:[function(require,module,exports){
+},{}],62:[function(require,module,exports){
 /**
  * @author alteredq / http://alteredqualia.com/
  *
@@ -49013,7 +50268,7 @@ module.exports = {
   ].join("\n")
 };
 
-},{}],62:[function(require,module,exports){
+},{}],63:[function(require,module,exports){
 vertexShader =
     ["uniform sampler2D noiseTexture;",
     "uniform float noiseScale;",
@@ -50282,7 +51537,7 @@ Effect.prototype.exportToJSON = function(shaderCode) {
 
     return result;
 }
-},{}],63:[function(require,module,exports){
+},{}],64:[function(require,module,exports){
 
 
 //
@@ -50500,7 +51755,7 @@ if (typeof Object.getOwnPropertyDescriptor === 'function') {
   exports.getOwnPropertyDescriptor = valueObject;
 }
 
-},{}],64:[function(require,module,exports){
+},{}],65:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -50573,7 +51828,7 @@ function onend() {
   timers.setImmediate(shims.bind(this.end, this));
 }
 
-},{"_shims":63,"_stream_readable":66,"_stream_writable":68,"timers":74,"util":75}],65:[function(require,module,exports){
+},{"_shims":64,"_stream_readable":67,"_stream_writable":69,"timers":75,"util":76}],66:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -50616,7 +51871,7 @@ PassThrough.prototype._transform = function(chunk, encoding, cb) {
   cb(null, chunk);
 };
 
-},{"_stream_transform":67,"util":75}],66:[function(require,module,exports){
+},{"_stream_transform":68,"util":76}],67:[function(require,module,exports){
 var process=require("__browserify_process");// Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -51537,7 +52792,7 @@ function endReadable(stream) {
   }
 }
 
-},{"__browserify_process":79,"_shims":63,"buffer":77,"events":70,"stream":72,"string_decoder":73,"timers":74,"util":75}],67:[function(require,module,exports){
+},{"__browserify_process":80,"_shims":64,"buffer":78,"events":71,"stream":73,"string_decoder":74,"timers":75,"util":76}],68:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -51743,7 +52998,7 @@ function done(stream, er) {
   return stream.push(null);
 }
 
-},{"_stream_duplex":64,"util":75}],68:[function(require,module,exports){
+},{"_stream_duplex":65,"util":76}],69:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -52113,7 +53368,7 @@ function endWritable(stream, state, cb) {
   state.ended = true;
 }
 
-},{"buffer":77,"stream":72,"timers":74,"util":75}],69:[function(require,module,exports){
+},{"buffer":78,"stream":73,"timers":75,"util":76}],70:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -52430,7 +53685,7 @@ assert.doesNotThrow = function(block, /*optional*/message) {
 };
 
 assert.ifError = function(err) { if (err) {throw err;}};
-},{"_shims":63,"util":75}],70:[function(require,module,exports){
+},{"_shims":64,"util":76}],71:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -52711,7 +53966,7 @@ EventEmitter.listenerCount = function(emitter, type) {
     ret = emitter._events[type].length;
   return ret;
 };
-},{"util":75}],71:[function(require,module,exports){
+},{"util":76}],72:[function(require,module,exports){
 var process=require("__browserify_process");// Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -52922,7 +54177,7 @@ exports.extname = function(path) {
   return splitPath(path)[3];
 };
 
-},{"__browserify_process":79,"_shims":63,"util":75}],72:[function(require,module,exports){
+},{"__browserify_process":80,"_shims":64,"util":76}],73:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -53051,7 +54306,7 @@ Stream.prototype.pipe = function(dest, options) {
   return dest;
 };
 
-},{"_stream_duplex":64,"_stream_passthrough":65,"_stream_readable":66,"_stream_transform":67,"_stream_writable":68,"events":70,"util":75}],73:[function(require,module,exports){
+},{"_stream_duplex":65,"_stream_passthrough":66,"_stream_readable":67,"_stream_transform":68,"_stream_writable":69,"events":71,"util":76}],74:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -53244,7 +54499,7 @@ function base64DetectIncompleteChar(buffer) {
   return incomplete;
 }
 
-},{"buffer":77}],74:[function(require,module,exports){
+},{"buffer":78}],75:[function(require,module,exports){
 try {
     // Old IE browsers that do not curry arguments
     if (!setTimeout.call) {
@@ -53363,7 +54618,7 @@ if (!exports.setImmediate) {
   };
 }
 
-},{}],75:[function(require,module,exports){
+},{}],76:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -53908,7 +55163,7 @@ function hasOwnProperty(obj, prop) {
   return Object.prototype.hasOwnProperty.call(obj, prop);
 }
 
-},{"_shims":63}],76:[function(require,module,exports){
+},{"_shims":64}],77:[function(require,module,exports){
 exports.readIEEE754 = function(buffer, offset, isBE, mLen, nBytes) {
   var e, m,
       eLen = nBytes * 8 - mLen - 1,
@@ -53994,7 +55249,7 @@ exports.writeIEEE754 = function(buffer, value, offset, isBE, mLen, nBytes) {
   buffer[offset + i - d] |= s * 128;
 };
 
-},{}],77:[function(require,module,exports){
+},{}],78:[function(require,module,exports){
 var assert;
 exports.Buffer = Buffer;
 exports.SlowBuffer = Buffer;
@@ -55120,7 +56375,7 @@ Buffer.prototype.writeDoubleBE = function(value, offset, noAssert) {
   writeDouble(this, value, offset, true, noAssert);
 };
 
-},{"./buffer_ieee754":76,"assert":69,"base64-js":78}],78:[function(require,module,exports){
+},{"./buffer_ieee754":77,"assert":70,"base64-js":79}],79:[function(require,module,exports){
 (function (exports) {
 	'use strict';
 
@@ -55206,7 +56461,7 @@ Buffer.prototype.writeDoubleBE = function(value, offset, noAssert) {
 	module.exports.fromByteArray = uint8ToBase64;
 }());
 
-},{}],79:[function(require,module,exports){
+},{}],80:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};

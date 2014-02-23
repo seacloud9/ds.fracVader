@@ -76,7 +76,6 @@
     preload.addEventListener("progress", handleOverallProgress);
     preload.loadFile("http://code.jquery.com/jquery-1.9.1.min.js");
     preload.loadFile('bundle.js');
-    preload.loadFile('node_modules/Shader-Particles/build/ShaderParticles.js');
     // Overall progress handler
     function handleOverallProgress(event) {
         var perc = preload.progress*100;

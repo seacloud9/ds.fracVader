@@ -1,9 +1,11 @@
-var createGame = require('voxel-engine');
-var tic = createGame.tick;
-voxelpp = require('voxel-pp');
-var importShaders = require('./scripts/shaders.js');
-var hasGenerated = false;
-var hasGeneratedMod = false;
+var createGame = require('voxel-engine'),
+    tic = createGame.tick,
+    voxelpp = require('voxel-pp'),
+    importShaders = require('./scripts/shaders.js'),
+    hasGenerated = false,
+    hasGeneratedMod = false,
+    cockpitView = true,
+    bulletmovespeed = 0.05 * 5;
 
 window.game = createGame({
     chunkDistance: 3,
@@ -13,14 +15,16 @@ window.game = createGame({
     generateChunks: false,
     texturePath: 'textures/',
     controls: {
-        discreteFire: false
+        discreteFire: false,
+        jump_max_speed: 0,
+        jump_speed: 0.004
     },
     materials: [
         ['glass2'], 'brick', 'dirt', 'obsidian'
     ]
 });
 var critterCreator = require('voxel-critter')(game);
-clock = new game.THREE.Clock();
+var clock = new game.THREE.Clock();
 window.game.view.renderer.autoClear = true;
 game.tic = tic;
 game.scene.fog.far = 90000;
@@ -34,10 +38,16 @@ window.addEventListener('keydown', function(ev) {
         if (d == 'block') {
             $('#cockpit').hide();
             player.avatar.head.children[4].visible = true;
+            cockpitView = false;
         } else {
             $('#cockpit').show();
             player.avatar.head.children[4].visible = false;
+            cockpitView = true;
         }
+    }
+    if (ev.keyCode == 32) {
+        ev.preventDefault();
+        createBullet();
     }
 });
 
@@ -154,7 +164,6 @@ function createCreaures() {
     removeNonMerged(cr);
     cr.add(groupM);
     cr.add(groupBG);
-    //exp
     creature = createCreature(cr);
     window.creature = creature;
     creature.position.y = 10;
@@ -203,14 +212,14 @@ startFracVaders = function() {
     window.game.scene.remove(window.game.scene.__objects[1]);
     initPostProcess();
     canvasCallback = $.Callbacks();
+    SPE = require('Shader-Particles')(game);
     window.game.starTunnel = new SPE.Group({
         texture: window.game.THREE.ImageUtils.loadTexture('images/spikey.png'),
         maxAge: 2
-    });
-
+    }, game.THREE);
     emitter = new SPE.Emitter({
-        position: new window.game.THREE.Vector3(0, 5, -10),
-        positionSpread: new window.game.THREE.Vector3(10, 10, 10),
+        position: new window.game.THREE.Vector3(0, 0, 10),
+        positionSpread: new window.game.THREE.Vector3(150, 150, 150),
         acceleration: new window.game.THREE.Vector3(0, 0, 10),
         velocity: new window.game.THREE.Vector3(0, 0, 10),
         colorStart: new window.game.THREE.Color('white'),
@@ -220,18 +229,17 @@ startFracVaders = function() {
         opacityStart: 0,
         opacityMiddle: 1,
         opacityEnd: 0,
-        particleCount: 10000
+        particleCount: 5000
     });
 
     window.game.starTunnel.addEmitter(emitter);
-    window.game.scene.add(window.game.starTunnel.mesh);
+
     window.game.scene.fog.color = {
         r: 0,
         g: 0,
         b: 0
     };
-    game.view.renderer.setClearColor(0x000000, 1.0)
-
+    game.view.renderer.setClearColor(0x000000, 1.0);
     game.on('postrender', function(dt) {
         window.game.starTunnel.tick(clock.getDelta() * 0.5);
         window.game.view.renderer.clear();
@@ -263,9 +271,15 @@ startFracVaders = function() {
         player.avatar.head.children[4].position.z = 90
 
         player.subjectTo([0, 0, 0]);
+        hellcatMod.item.subjectTo([0, 0, 0]);
+        player.avatar.name = "omegavader";
         //player.friction = new game.THREE.Vector3(1, 1, 10);
         //player.move([0,0,-0.000005]);
         player.possess();
+        player.avatar.add(window.game.starTunnel.mesh);
+        window.game.starTunnel.mesh.position.z = -90;
+        window.game.starTunnel.mesh.position.y = 20;
+
         $('#loader').hide();
         $('#container').fadeIn("fast");
         $('#cockpit').css('bottom', '0px');
@@ -277,6 +291,54 @@ startFracVaders = function() {
     hellcat.src = 'images/hellcat2.png';
 
 };
+
+//// shooting logic 
+var bullets = [];
+var sphereMaterial = new window.game.THREE.MeshBasicMaterial({
+    color: 0xffffff
+});
+var sphereGeo = new window.game.THREE.SphereGeometry(2, 6, 6);
+
+function getShootDir(targetVec) {
+    var vector = targetVec;
+    targetVec.set(0, 0, 1);
+    projector.unprojectVector(vector, camera);
+    var ray = new THREE.Ray(sphereBody.position, vector.subSelf(sphereBody.position).normalize());
+    targetVec.x = ray.direction.x;
+    targetVec.y = ray.direction.y;
+    targetVec.z = ray.direction.z;
+}
+
+createBullet = function(obj) {
+    pro = new window.game.THREE.Projector();
+    if (obj === undefined) {
+        obj = window.game.camera;
+    }
+    var bullet = new window.game.THREE.Mesh(sphereGeo, sphereMaterial);
+    var bullet2 = new window.game.THREE.Mesh(sphereGeo, sphereMaterial);
+    if (obj instanceof window.game.THREE.Camera) {
+        var vector = player.position;
+        defaultPos = new window.game.THREE.Vector3(0, 2, 0);
+        bullet.position.set(vector.x + 14, vector.y * 0.8, vector.z);
+        bullet2.position.set(vector.x - 14, vector.y * 0.8, vector.z);
+        if (player.position.x == defaultPos.x && player.position.z == defaultPos.z) {
+            vector = new window.game.THREE.Vector3(player.position.x, player.position.y, 1);
+            pro.unprojectVector(vector, obj);
+            ray = bullet.ray = bullet2.ray = new window.game.THREE.Ray(player.position, vector.sub(player.position).normalize());
+        } else {
+            pro.unprojectVector(vector, obj);
+            ray = bullet.ray = bullet2.ray = new window.game.THREE.Ray(player.position, vector.sub(player.position).normalize());
+        }
+    } else {
+        // enemey logic
+
+    };
+    bullet.owner = obj;
+    bullets.push(bullet, bullet2);
+    window.game.scene.add(bullet);
+    window.game.scene.add(bullet2);
+    return [bullet, bullet2]
+}
 
 startFracIntro = function() {
     player = null;
@@ -340,7 +402,6 @@ startFracIntro = function() {
     uniformsTunnelFS.iChannel0.value.wrapS = uniformsTunnelFS.iChannel0.value.wrapT = window.game.THREE.RepeatWrapping;
     uniformsTunnelFS.resolution.value.x = $('#container').width();
     uniformsTunnelFS.resolution.value.y = $('#container').height();
-
     tunnelMat = new window.game.THREE.ShaderMaterial({
         uniforms: uniformsTunnelFS,
         vertexShader: tunnelFVVS,
@@ -352,11 +413,18 @@ startFracIntro = function() {
     window.game.scene.add(mesh);
     window.game.camera.position.z = 1;
     game.on('tick', function(delta) {
-        if (window.game.starTunnel != undefined && player != null) {
-            emitter.position.z = (player.position.z - 10);
-            emitter.position.y = (player.position.y + 5);
-            emitter.position.x = player.position.x;
-        }
         uniformsTunnelFS.time.value += 0.01;
+        speed = delta * bulletmovespeed;
+        for (var i = bullets.length - 1; i >= 0; i--) {
+            var b = bullets[i],
+                p = b.position,
+                d = b.ray.direction;
+            var hit = false;
+            if (!hit) {
+                b.translateX(speed * d.x);
+                //bullets[i].translateY(speed * bullets[i].direction.y);
+                b.translateZ(speed * d.z);
+            }
+        }
     });
 }

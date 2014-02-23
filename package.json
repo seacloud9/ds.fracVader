@@ -24,7 +24,7 @@
         "voxel-creature": "0.1.0",
         "voxel-critter": "git://github.com/seacloud9/voxel-critter.git",
         "voxel-pp": "git://github.com/seacloud9/voxel-pp.git",
-        "ShaderParticleEngine": "git://github.com/squarefeet/ShaderParticleEngine.git"
+        "Shader-Particles": "git://github.com/seacloud9/ShaderParticleEngine.git"
     },
     "devDependencies": {
         "browservefy": "0.0.10"
