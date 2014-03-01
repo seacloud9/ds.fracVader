@@ -5,7 +5,14 @@ var createGame = require('voxel-engine'),
     hasGenerated = false,
     hasGeneratedMod = false,
     cockpitView = true,
-    bulletmovespeed = 0.05 * 5;
+    bulletmovespeed = 0.05 * 5,
+    _liveBogeys = [],
+    _width = window.innerWidth,
+    _height = window.innerHeight;
+mouse = {
+    x: 0,
+    y: 0
+};
 
 window.game = createGame({
     chunkDistance: 3,
@@ -21,8 +28,25 @@ window.game = createGame({
     },
     materials: [
         ['glass2'], 'brick', 'dirt', 'obsidian'
-    ]
+    ],
+    keybindings: {
+        'W': 'forward',
+        'A': null,
+        'S': 'backward',
+        'D': null,
+        '<up>': 'forward',
+        '<left>': null,
+        '<down>': 'backward',
+        '<right>': null,
+        '<mouse 1>': 'fire',
+        '<mouse 3>': 'firealt',
+        '<space>': 'jump',
+        '<shift>': 'crouch',
+        '<control>': 'alt'
+    }
+
 });
+
 var critterCreator = require('voxel-critter')(game);
 var clock = new game.THREE.Clock();
 window.game.view.renderer.autoClear = true;
@@ -31,6 +55,9 @@ game.scene.fog.far = 90000;
 game.gravity = [0, 0, 0];
 game.paused = false
 game.appendTo('#container');
+document.addEventListener('mousemove', onDocumentMouseMove, false);
+var vaderBullet = require('voxel-bullet');
+_bullet = vaderBullet(game)();
 window.addEventListener('keydown', function(ev) {
     if (ev.keyCode === 'R'.charCodeAt(0)) {
         player.toggle();
@@ -39,150 +66,27 @@ window.addEventListener('keydown', function(ev) {
             $('#cockpit').hide();
             player.avatar.head.children[4].visible = true;
             cockpitView = false;
+            player.currentCamera = player.avatar.cameraOutside.children[0];
         } else {
             $('#cockpit').show();
             player.avatar.head.children[4].visible = false;
             cockpitView = true;
+            player.currentCamera = player.avatar.cameraInside.children[1];
         }
     }
     if (ev.keyCode == 32) {
         ev.preventDefault();
-        createBullet();
+        var rP = player.position;
+        var bArr = [new game.THREE.Vector3(rP.x + 14, rP.y * 0.8, rP.z), new game.THREE.Vector3(rP.x - 14, rP.y * 0.8, rP.z)];
+        _bullet.BuildBullets({
+            count: 2,
+            rootVector: new game.THREE.Vector3(mouse.x, mouse.y, 1),
+            rootPosition: player.position,
+            bulletPosition: bArr,
+            target: _liveBogeys,
+        }, player.currentCamera);
     }
 });
-
-function createInvader(game) {
-    var sz = 5;
-    var step = sz / 5;
-    var padding = parseInt(sz / 2);
-    var mx, my;
-    var T = game.THREE;
-    var body = new T.Object3D;
-    var bg = new T.Object3D();
-    var createVader = function(clr, amb) {
-        mats = [
-            new T.MeshLambertMaterial({
-                color: clr,
-                ambient: amb
-            }),
-        ];
-        var vaders = new T.Mesh(
-            new T.CubeGeometry(1, 1, 1),
-            //new T.MeshFaceMaterial(mats)
-            new T.MeshLambertMaterial({
-                color: clr,
-                ambient: amb
-            })
-        );
-        return vaders;
-    }
-
-    col = [];
-    for (var j = 0; j < sz; j += step) {
-        var m = 1;
-        col[j] = [];
-        for (var i = 0; i < sz / 2; i += step) {
-            c = (Math.random(1) > .5) ? false : true;
-            col[j][i] = c;
-            col[j][i + (sz - step) / m] = c;
-            m++;
-        }
-    }
-    for (var j = 0; j < sz; j += step) {
-        for (var i = 0; i < sz; i += step) {
-            var vaders = createVader(0x91e842, 0xffffff);
-            var vader2 = createVader(0x91e842, 0xffffff);
-            var vadersBG = createVader(0x800830, 0x800830);
-            vadersBG.position.set(i, j, 4);
-            vadersBG.visible = col[j][i];
-            vaders.position.set(i, j, 5);
-            vaders.visible = col[j][i];
-            vader2.position.set(i, j, 6);
-            vader2.visible = col[j][i];
-            vadersBG.vaderT = "bg";
-            vaders.vaderT = "front";
-            vader2.vaderT = "front";
-            bg.add(vadersBG);
-            body.add(bg);
-            body.add(vaders);
-            body.add(vader2);
-        }
-    }
-
-    return body;
-};
-
-function createCreaures() {
-    createCreature = require('voxel-creature')(game);
-    cr = createInvader(game);
-    /// merging geometry
-    var visibileArrBG = new Array();
-    var visibileArr = new Array();
-    var meshInvaderVisibile = function(obj) {
-        for (var i = 0; obj.children.length > i; i++) {
-            if (obj.children[i].children.length == 0 && obj.children[i].visible == true && obj.children[i].vaderT == "bg") {
-                visibileArrBG.push(obj.children[i]);
-            } else if (obj.children[i].visible == true && obj.children[i].vaderT == "front") {
-                visibileArr.push(obj.children[i]);
-            } else {
-                meshInvaderVisibile(obj.children[i])
-            }
-        }
-    }
-    meshInvaderVisibile(cr);
-    mergedGeo = new game.THREE.Geometry();
-    mergedGeoBG = new game.THREE.Geometry();
-    for (var i = 0; visibileArr.length > i; i++) {
-        if (i != 0) {
-            window.game.THREE.GeometryUtils.merge(mergedGeo, visibileArr[i]);
-        }
-    }
-    for (var i = 0; visibileArrBG.length > i; i++) {
-        if (i != 0) {
-            window.game.THREE.GeometryUtils.merge(mergedGeoBG, visibileArrBG[i]);
-        }
-    }
-    groupBG = new game.THREE.Mesh(mergedGeoBG, new game.THREE.MeshLambertMaterial({
-        color: 0xffffff,
-        ambient: 0xffffff
-    }));
-    groupM = new game.THREE.Mesh(mergedGeo, new game.THREE.MeshLambertMaterial({
-        color: 0x800830,
-        ambient: 0x800830
-    }));
-    var removeNonMerged = function(obj) {
-        for (var i = 0; obj.children.length > i; i++) {
-            if (obj.children != undefined && obj.children[i].children.length == 0 && obj.children[i].visible == true) {
-                obj.children[i].visible = false;
-                obj.children[i].vaderT = "hidden";
-                removeNonMerged(cr);
-            } else if (obj.children != undefined) {
-                removeNonMerged(obj.children[i]);
-            }
-        }
-    }
-    removeNonMerged(cr);
-    cr.add(groupM);
-    cr.add(groupBG);
-    creature = createCreature(cr);
-    window.creature = creature;
-    creature.position.y = 10;
-    creature.position.x = 0;
-    creature.position.z = -30;
-
-    creature.on('notice', function(player) {
-        creature.lookAt(player);
-        creature.move(((player.position.x - creature.position.x) * 0.1), ((player.position.y - creature.position.y) * 0.1), ((player.position.z - creature.position.z) * 0.001));
-    });
-    creature.notice(player, {
-        radius: 500
-    });
-    setInterval(function() {
-        if (creature.noticed) return;
-        //creature.rotation.y += Math.random() * Math.PI / 2 - Math.PI / 4;
-        //creature.move(0, 0, 0.5 * Math.random());
-    }, 1000);
-}
 
 function initPostProcess() {
     /// postprocess rendering
@@ -198,8 +102,8 @@ function initPostProcess() {
 
 
 onWindowResize = function(event) {
-    //customUniforms.resolution.value.x = window.innerWidth;
-    //customUniforms.resolution.value.y = window.innerHeight;
+    customUniforms.resolution.value.x = window.innerWidth;
+    customUniforms.resolution.value.y = window.innerHeight;
     postprocessor.composer.setSize(window.innerWidth, window.innerHeight);
     window.game.camera.aspect = window.innerWidth / window.innerHeight;
     window.game.camera.updateProjectionMatrix();
@@ -276,7 +180,11 @@ startFracVaders = function() {
         //player.friction = new game.THREE.Vector3(1, 1, 10);
         //player.move([0,0,-0.000005]);
         player.possess();
+        /*player.on('collide', function(creature) {
+            console.log('collide2');
+        });*/
         player.avatar.add(window.game.starTunnel.mesh);
+        player.currentCamera = player.avatar.cameraInside.children[1];
         window.game.starTunnel.mesh.position.z = -90;
         window.game.starTunnel.mesh.position.y = 20;
 
@@ -285,60 +193,77 @@ startFracVaders = function() {
         $('#cockpit').css('bottom', '0px');
         $('#cockpit').fadeIn("fast");
         $('#phaser').remove();
-        createCreaures();
+
+        // createCreaures();
+        vv = require('voxel-vader');
+        _vv = vv(game)(game);
+        _vv.message = 'c1';
+        _vv.position.y = 10;
+        _vv.position.x = 0;
+        _vv.position.z = -80;
+
+        _vv.on('notice', function(player) {
+            // console.log('hit');
+            _vv.lookAt(player);
+            _vv.move(((player.position.x - _vv.position.x) * 0.001), ((player.position.y - _vv.position.y) * 0.001), ((player.position.z - _vv.position.z) * 0.001));
+        });
+
+        _vv.on('collide', function(player) {
+            console.log(this.message);
+            //console.log('collide1');
+        });
+        _vv.notice(player, {
+            radius: 500
+        });
+
+        setInterval(function() {
+            if (_vv.noticed) return;
+            //creature.rotation.y += Math.random() * Math.PI / 2 - Math.PI / 4;
+            //creature.move(0, 0, 0.5 * Math.random());
+        }, 1000);
+        _liveBogeys.push(_vv);
+
+
+        _vv2 = vv(game)(game);
+        _vv2.message = 'c2';
+        _vv2.position.y = 10;
+        _vv2.position.x = 0;
+        _vv2.position.z = -80;
+
+        _vv2.on('notice', function(player) {
+            // console.log('hit');
+            _vv2.lookAt(player);
+            _vv2.move(((player.position.x - _vv.position.x) * 0.001), ((player.position.y - _vv.position.y) * 0.001), ((player.position.z - _vv.position.z) * 0.001));
+        });
+
+        _vv2.on('collide', function(player) {
+            // console.log(this.message);
+            //console.log('collide1');
+        });
+        _vv2.notice(player, {
+            radius: 500
+        });
+
+        setInterval(function() {
+            if (_vv2.noticed) return;
+            //creature.rotation.y += Math.random() * Math.PI / 2 - Math.PI / 4;
+            //creature.move(0, 0, 0.5 * Math.random());
+        }, 1000);
+        _liveBogeys.push(_vv2);
 
     }
     hellcat.src = 'images/hellcat2.png';
 
 };
 
-//// shooting logic 
-var bullets = [];
-var sphereMaterial = new window.game.THREE.MeshBasicMaterial({
-    color: 0xffffff
-});
-var sphereGeo = new window.game.THREE.SphereGeometry(2, 6, 6);
 
-function getShootDir(targetVec) {
-    var vector = targetVec;
-    targetVec.set(0, 0, 1);
-    projector.unprojectVector(vector, camera);
-    var ray = new THREE.Ray(sphereBody.position, vector.subSelf(sphereBody.position).normalize());
-    targetVec.x = ray.direction.x;
-    targetVec.y = ray.direction.y;
-    targetVec.z = ray.direction.z;
+function onDocumentMouseMove(e) {
+    e.preventDefault();
+    mouse.x = (e.clientX / _width) * 2 - 1;
+    mouse.y = -(e.clientY / _height) * 2 + 1;
 }
 
-createBullet = function(obj) {
-    pro = new window.game.THREE.Projector();
-    if (obj === undefined) {
-        obj = window.game.camera;
-    }
-    var bullet = new window.game.THREE.Mesh(sphereGeo, sphereMaterial);
-    var bullet2 = new window.game.THREE.Mesh(sphereGeo, sphereMaterial);
-    if (obj instanceof window.game.THREE.Camera) {
-        var vector = player.position;
-        defaultPos = new window.game.THREE.Vector3(0, 2, 0);
-        bullet.position.set(vector.x + 14, vector.y * 0.8, vector.z);
-        bullet2.position.set(vector.x - 14, vector.y * 0.8, vector.z);
-        if (player.position.x == defaultPos.x && player.position.z == defaultPos.z) {
-            vector = new window.game.THREE.Vector3(player.position.x, player.position.y, 1);
-            pro.unprojectVector(vector, obj);
-            ray = bullet.ray = bullet2.ray = new window.game.THREE.Ray(player.position, vector.sub(player.position).normalize());
-        } else {
-            pro.unprojectVector(vector, obj);
-            ray = bullet.ray = bullet2.ray = new window.game.THREE.Ray(player.position, vector.sub(player.position).normalize());
-        }
-    } else {
-        // enemey logic
 
-    };
-    bullet.owner = obj;
-    bullets.push(bullet, bullet2);
-    window.game.scene.add(bullet);
-    window.game.scene.add(bullet2);
-    return [bullet, bullet2]
-}
 
 startFracIntro = function() {
     player = null;
@@ -412,19 +337,23 @@ startFracIntro = function() {
     mesh.name = "spacetunnel";
     window.game.scene.add(mesh);
     window.game.camera.position.z = 1;
+    window.game.camera.useQuaternion = true;
     game.on('tick', function(delta) {
         uniformsTunnelFS.time.value += 0.01;
-        speed = delta * bulletmovespeed;
-        for (var i = bullets.length - 1; i >= 0; i--) {
-            var b = bullets[i],
-                p = b.position,
-                d = b.ray.direction;
-            var hit = false;
-            if (!hit) {
-                b.translateX(speed * d.x);
-                //bullets[i].translateY(speed * bullets[i].direction.y);
-                b.translateZ(speed * d.z);
+        if (typeof _bullet != undefined) {
+            var speed = delta * _bullet.speed;
+            for (var i = _bullet.live.length - 1; i >= 0; i--) {
+                var b = _bullet.live[i].mesh,
+                    p = b.position,
+                    d = b.ray.direction;
+                var hit = false;
+                if (!hit) {
+                    b.translateX(speed * d.x);
+                    b.translateY(speed * d.y);
+                    b.translateZ(speed * d.z);
+                }
             }
         }
+
     });
 }

@@ -6,7 +6,14 @@ var createGame = require('voxel-engine'),
     hasGenerated = false,
     hasGeneratedMod = false,
     cockpitView = true,
-    bulletmovespeed = 0.05 * 5;
+    bulletmovespeed = 0.05 * 5,
+    _liveBogeys = [],
+    _width = window.innerWidth,
+    _height = window.innerHeight;
+mouse = {
+    x: 0,
+    y: 0
+};
 
 window.game = createGame({
     chunkDistance: 3,
@@ -22,8 +29,25 @@ window.game = createGame({
     },
     materials: [
         ['glass2'], 'brick', 'dirt', 'obsidian'
-    ]
+    ],
+    keybindings: {
+        'W': 'forward',
+        'A': null,
+        'S': 'backward',
+        'D': null,
+        '<up>': 'forward',
+        '<left>': null,
+        '<down>': 'backward',
+        '<right>': null,
+        '<mouse 1>': 'fire',
+        '<mouse 3>': 'firealt',
+        '<space>': 'jump',
+        '<shift>': 'crouch',
+        '<control>': 'alt'
+    }
+
 });
+
 var critterCreator = require('voxel-critter')(game);
 var clock = new game.THREE.Clock();
 window.game.view.renderer.autoClear = true;
@@ -32,6 +56,9 @@ game.scene.fog.far = 90000;
 game.gravity = [0, 0, 0];
 game.paused = false
 game.appendTo('#container');
+document.addEventListener('mousemove', onDocumentMouseMove, false);
+var vaderBullet = require('voxel-bullet');
+_bullet = vaderBullet(game)();
 window.addEventListener('keydown', function(ev) {
     if (ev.keyCode === 'R'.charCodeAt(0)) {
         player.toggle();
@@ -40,150 +67,27 @@ window.addEventListener('keydown', function(ev) {
             $('#cockpit').hide();
             player.avatar.head.children[4].visible = true;
             cockpitView = false;
+            player.currentCamera = player.avatar.cameraOutside.children[0];
         } else {
             $('#cockpit').show();
             player.avatar.head.children[4].visible = false;
             cockpitView = true;
+            player.currentCamera = player.avatar.cameraInside.children[1];
         }
     }
     if (ev.keyCode == 32) {
         ev.preventDefault();
-        createBullet();
+        var rP = player.position;
+        var bArr = [new game.THREE.Vector3(rP.x + 14, rP.y * 0.8, rP.z), new game.THREE.Vector3(rP.x - 14, rP.y * 0.8, rP.z)];
+        _bullet.BuildBullets({
+            count: 2,
+            rootVector: new game.THREE.Vector3(mouse.x, mouse.y, 1),
+            rootPosition: player.position,
+            bulletPosition: bArr,
+            target: _liveBogeys,
+        }, player.currentCamera);
     }
 });
-
-function createInvader(game) {
-    var sz = 5;
-    var step = sz / 5;
-    var padding = parseInt(sz / 2);
-    var mx, my;
-    var T = game.THREE;
-    var body = new T.Object3D;
-    var bg = new T.Object3D();
-    var createVader = function(clr, amb) {
-        mats = [
-            new T.MeshLambertMaterial({
-                color: clr,
-                ambient: amb
-            }),
-        ];
-        var vaders = new T.Mesh(
-            new T.CubeGeometry(1, 1, 1),
-            //new T.MeshFaceMaterial(mats)
-            new T.MeshLambertMaterial({
-                color: clr,
-                ambient: amb
-            })
-        );
-        return vaders;
-    }
-
-    col = [];
-    for (var j = 0; j < sz; j += step) {
-        var m = 1;
-        col[j] = [];
-        for (var i = 0; i < sz / 2; i += step) {
-            c = (Math.random(1) > .5) ? false : true;
-            col[j][i] = c;
-            col[j][i + (sz - step) / m] = c;
-            m++;
-        }
-    }
-    for (var j = 0; j < sz; j += step) {
-        for (var i = 0; i < sz; i += step) {
-            var vaders = createVader(0x91e842, 0xffffff);
-            var vader2 = createVader(0x91e842, 0xffffff);
-            var vadersBG = createVader(0x800830, 0x800830);
-            vadersBG.position.set(i, j, 4);
-            vadersBG.visible = col[j][i];
-            vaders.position.set(i, j, 5);
-            vaders.visible = col[j][i];
-            vader2.position.set(i, j, 6);
-            vader2.visible = col[j][i];
-            vadersBG.vaderT = "bg";
-            vaders.vaderT = "front";
-            vader2.vaderT = "front";
-            bg.add(vadersBG);
-            body.add(bg);
-            body.add(vaders);
-            body.add(vader2);
-        }
-    }
-
-    return body;
-};
-
-function createCreaures() {
-    createCreature = require('voxel-creature')(game);
-    cr = createInvader(game);
-    /// merging geometry
-    var visibileArrBG = new Array();
-    var visibileArr = new Array();
-    var meshInvaderVisibile = function(obj) {
-        for (var i = 0; obj.children.length > i; i++) {
-            if (obj.children[i].children.length == 0 && obj.children[i].visible == true && obj.children[i].vaderT == "bg") {
-                visibileArrBG.push(obj.children[i]);
-            } else if (obj.children[i].visible == true && obj.children[i].vaderT == "front") {
-                visibileArr.push(obj.children[i]);
-            } else {
-                meshInvaderVisibile(obj.children[i])
-            }
-        }
-    }
-    meshInvaderVisibile(cr);
-    mergedGeo = new game.THREE.Geometry();
-    mergedGeoBG = new game.THREE.Geometry();
-    for (var i = 0; visibileArr.length > i; i++) {
-        if (i != 0) {
-            window.game.THREE.GeometryUtils.merge(mergedGeo, visibileArr[i]);
-        }
-    }
-    for (var i = 0; visibileArrBG.length > i; i++) {
-        if (i != 0) {
-            window.game.THREE.GeometryUtils.merge(mergedGeoBG, visibileArrBG[i]);
-        }
-    }
-    groupBG = new game.THREE.Mesh(mergedGeoBG, new game.THREE.MeshLambertMaterial({
-        color: 0xffffff,
-        ambient: 0xffffff
-    }));
-    groupM = new game.THREE.Mesh(mergedGeo, new game.THREE.MeshLambertMaterial({
-        color: 0x800830,
-        ambient: 0x800830
-    }));
-    var removeNonMerged = function(obj) {
-        for (var i = 0; obj.children.length > i; i++) {
-            if (obj.children != undefined && obj.children[i].children.length == 0 && obj.children[i].visible == true) {
-                obj.children[i].visible = false;
-                obj.children[i].vaderT = "hidden";
-                removeNonMerged(cr);
-            } else if (obj.children != undefined) {
-                removeNonMerged(obj.children[i]);
-            }
-        }
-    }
-    removeNonMerged(cr);
-    cr.add(groupM);
-    cr.add(groupBG);
-    creature = createCreature(cr);
-    window.creature = creature;
-    creature.position.y = 10;
-    creature.position.x = 0;
-    creature.position.z = -30;
-
-    creature.on('notice', function(player) {
-        creature.lookAt(player);
-        creature.move(((player.position.x - creature.position.x) * 0.1), ((player.position.y - creature.position.y) * 0.1), ((player.position.z - creature.position.z) * 0.001));
-    });
-    creature.notice(player, {
-        radius: 500
-    });
-    setInterval(function() {
-        if (creature.noticed) return;
-        //creature.rotation.y += Math.random() * Math.PI / 2 - Math.PI / 4;
-        //creature.move(0, 0, 0.5 * Math.random());
-    }, 1000);
-}
 
 function initPostProcess() {
     /// postprocess rendering
@@ -199,8 +103,8 @@ function initPostProcess() {
 
 
 onWindowResize = function(event) {
-    //customUniforms.resolution.value.x = window.innerWidth;
-    //customUniforms.resolution.value.y = window.innerHeight;
+    customUniforms.resolution.value.x = window.innerWidth;
+    customUniforms.resolution.value.y = window.innerHeight;
     postprocessor.composer.setSize(window.innerWidth, window.innerHeight);
     window.game.camera.aspect = window.innerWidth / window.innerHeight;
     window.game.camera.updateProjectionMatrix();
@@ -277,7 +181,11 @@ startFracVaders = function() {
         //player.friction = new game.THREE.Vector3(1, 1, 10);
         //player.move([0,0,-0.000005]);
         player.possess();
+        /*player.on('collide', function(creature) {
+            console.log('collide2');
+        });*/
         player.avatar.add(window.game.starTunnel.mesh);
+        player.currentCamera = player.avatar.cameraInside.children[1];
         window.game.starTunnel.mesh.position.z = -90;
         window.game.starTunnel.mesh.position.y = 20;
 
@@ -286,60 +194,77 @@ startFracVaders = function() {
         $('#cockpit').css('bottom', '0px');
         $('#cockpit').fadeIn("fast");
         $('#phaser').remove();
-        createCreaures();
+
+        // createCreaures();
+        vv = require('voxel-vader');
+        _vv = vv(game)(game);
+        _vv.message = 'c1';
+        _vv.position.y = 10;
+        _vv.position.x = 0;
+        _vv.position.z = -80;
+
+        _vv.on('notice', function(player) {
+            // console.log('hit');
+            _vv.lookAt(player);
+            _vv.move(((player.position.x - _vv.position.x) * 0.001), ((player.position.y - _vv.position.y) * 0.001), ((player.position.z - _vv.position.z) * 0.001));
+        });
+
+        _vv.on('collide', function(player) {
+            console.log(this.message);
+            //console.log('collide1');
+        });
+        _vv.notice(player, {
+            radius: 500
+        });
+
+        setInterval(function() {
+            if (_vv.noticed) return;
+            //creature.rotation.y += Math.random() * Math.PI / 2 - Math.PI / 4;
+            //creature.move(0, 0, 0.5 * Math.random());
+        }, 1000);
+        _liveBogeys.push(_vv);
+
+
+        _vv2 = vv(game)(game);
+        _vv2.message = 'c2';
+        _vv2.position.y = 10;
+        _vv2.position.x = 0;
+        _vv2.position.z = -80;
+
+        _vv2.on('notice', function(player) {
+            // console.log('hit');
+            _vv2.lookAt(player);
+            _vv2.move(((player.position.x - _vv.position.x) * 0.001), ((player.position.y - _vv.position.y) * 0.001), ((player.position.z - _vv.position.z) * 0.001));
+        });
+
+        _vv2.on('collide', function(player) {
+            // console.log(this.message);
+            //console.log('collide1');
+        });
+        _vv2.notice(player, {
+            radius: 500
+        });
+
+        setInterval(function() {
+            if (_vv2.noticed) return;
+            //creature.rotation.y += Math.random() * Math.PI / 2 - Math.PI / 4;
+            //creature.move(0, 0, 0.5 * Math.random());
+        }, 1000);
+        _liveBogeys.push(_vv2);
 
     }
     hellcat.src = 'images/hellcat2.png';
 
 };
 
-//// shooting logic 
-var bullets = [];
-var sphereMaterial = new window.game.THREE.MeshBasicMaterial({
-    color: 0xffffff
-});
-var sphereGeo = new window.game.THREE.SphereGeometry(2, 6, 6);
 
-function getShootDir(targetVec) {
-    var vector = targetVec;
-    targetVec.set(0, 0, 1);
-    projector.unprojectVector(vector, camera);
-    var ray = new THREE.Ray(sphereBody.position, vector.subSelf(sphereBody.position).normalize());
-    targetVec.x = ray.direction.x;
-    targetVec.y = ray.direction.y;
-    targetVec.z = ray.direction.z;
+function onDocumentMouseMove(e) {
+    e.preventDefault();
+    mouse.x = (e.clientX / _width) * 2 - 1;
+    mouse.y = -(e.clientY / _height) * 2 + 1;
 }
 
-createBullet = function(obj) {
-    pro = new window.game.THREE.Projector();
-    if (obj === undefined) {
-        obj = window.game.camera;
-    }
-    var bullet = new window.game.THREE.Mesh(sphereGeo, sphereMaterial);
-    var bullet2 = new window.game.THREE.Mesh(sphereGeo, sphereMaterial);
-    if (obj instanceof window.game.THREE.Camera) {
-        var vector = player.position;
-        defaultPos = new window.game.THREE.Vector3(0, 2, 0);
-        bullet.position.set(vector.x + 14, vector.y * 0.8, vector.z);
-        bullet2.position.set(vector.x - 14, vector.y * 0.8, vector.z);
-        if (player.position.x == defaultPos.x && player.position.z == defaultPos.z) {
-            vector = new window.game.THREE.Vector3(player.position.x, player.position.y, 1);
-            pro.unprojectVector(vector, obj);
-            ray = bullet.ray = bullet2.ray = new window.game.THREE.Ray(player.position, vector.sub(player.position).normalize());
-        } else {
-            pro.unprojectVector(vector, obj);
-            ray = bullet.ray = bullet2.ray = new window.game.THREE.Ray(player.position, vector.sub(player.position).normalize());
-        }
-    } else {
-        // enemey logic
 
-    };
-    bullet.owner = obj;
-    bullets.push(bullet, bullet2);
-    window.game.scene.add(bullet);
-    window.game.scene.add(bullet2);
-    return [bullet, bullet2]
-}
 
 startFracIntro = function() {
     player = null;
@@ -413,23 +338,27 @@ startFracIntro = function() {
     mesh.name = "spacetunnel";
     window.game.scene.add(mesh);
     window.game.camera.position.z = 1;
+    window.game.camera.useQuaternion = true;
     game.on('tick', function(delta) {
         uniformsTunnelFS.time.value += 0.01;
-        speed = delta * bulletmovespeed;
-        for (var i = bullets.length - 1; i >= 0; i--) {
-            var b = bullets[i],
-                p = b.position,
-                d = b.ray.direction;
-            var hit = false;
-            if (!hit) {
-                b.translateX(speed * d.x);
-                //bullets[i].translateY(speed * bullets[i].direction.y);
-                b.translateZ(speed * d.z);
+        if (typeof _bullet != undefined) {
+            var speed = delta * _bullet.speed;
+            for (var i = _bullet.live.length - 1; i >= 0; i--) {
+                var b = _bullet.live[i].mesh,
+                    p = b.position,
+                    d = b.ray.direction;
+                var hit = false;
+                if (!hit) {
+                    b.translateX(speed * d.x);
+                    b.translateY(speed * d.y);
+                    b.translateZ(speed * d.z);
+                }
             }
         }
+
     });
 }
-},{"./scripts/shaders.js":63,"Shader-Particles":2,"voxel-creature":3,"voxel-critter":5,"voxel-engine":8,"voxel-player":49,"voxel-pp":51}],2:[function(require,module,exports){
+},{"./scripts/shaders.js":68,"Shader-Particles":2,"voxel-bullet":3,"voxel-critter":7,"voxel-engine":10,"voxel-player":51,"voxel-pp":53,"voxel-vader":65}],2:[function(require,module,exports){
 module.exports = function(game) {
     var THREE = game.THREE;
 
@@ -1617,6 +1546,140 @@ var inherits = require('inherits');
 var EventEmitter = require('events').EventEmitter;
 
 module.exports = function(game) {
+    return function(opts) {
+        return new Bullet(game, opts || {});
+    };
+};
+inherits(Bullet, EventEmitter);
+module.exports.Bullet = Bullet;
+
+function Bullet(game, opts) {
+    this.game = game;
+    if (!opts) opts = {};
+    if (opts.mesh == undefined) opts.mesh = new game.THREE.SphereGeometry(2, 6, 6);
+    if (opts.material == undefined) opts.material = new game.THREE.MeshBasicMaterial({
+        color: 0xffffff
+    });
+    if (opts.speed == undefined) opts.speed = 0.25;
+    this.speed = opts.speed;
+    this.mesh = opts.mesh;
+    this.material = opts.material;
+
+    this.live = [];
+    this.local = [];
+
+    this.type = ['enemy', 'player'];
+}
+
+Bullet.prototype.BuildBullets = function(opts, camera) {
+    this.pro = new game.THREE.Projector();
+    if (!opts) opts = {};
+    if (opts.count == undefined) opts.count = 1;
+    if (opts.rootVector == undefined) opts.rootVector = new game.THREE.Vector3(1, 1, 1);
+    if (opts.rootPosition == undefined) opts.rootPosition = new game.THREE.Vector3(1, 1, 1);
+    if (opts.bulletPosition == undefined) opts.bulletPosition = [new game.THREE.Vector3(1, 1, 1)];
+    if (opts.radius === undefined) opts.radius = 50;
+    if (opts.collisionRadius === undefined) opts.collisionRadius = 20;
+    if (opts.interval === undefined) opts.interval = 1000;
+    if (opts.owner == undefined) this.owner = this.type[1];
+    for (var i = 0; i < opts.count; i++) {
+        this.local[i] = new game.THREE.Mesh(this.mesh, this.material);
+        this.local[i].position.set(opts.bulletPosition[i].x, opts.bulletPosition[i].y, opts.bulletPosition[i].z);
+        this.local[i].useQuaternion = true;
+    }
+    if (this.owner) {
+        if (camera == undefined) return console.log('player requires a camera. ');
+        this.pro.unprojectVector(opts.rootVector, camera);
+        var ray = new game.THREE.Ray(opts.rootPosition, opts.rootVector.sub(opts.rootPosition).normalize());
+        for (var i = 0; i < opts.count; i++) {
+            this.local[i].ray = ray;
+        }
+    } else {
+
+    }
+    var events = require('events');
+
+    for (var i = 0; i < opts.count; i++) {
+        this.local[i].owner = this.owner;
+        var _bT = {};
+        _bT.collisionRadius = opts.collisionRadius;
+        _bT.mesh = this.local[i];
+        _bT._event = new events.EventEmitter();
+        _bT._events = _bT._event._events;
+        _bT.game = game;
+        _bT.size = this.game.cubeSize;
+        _bT.velocity = {
+            x: 0,
+            y: 0,
+            z: 0
+        };
+        _bT.item = game.addItem(_bT);
+        _bT.notice = function(target, opts) {
+            var sefl = this;
+            if (!opts) opts = {};
+            if (opts.radius === undefined) opts.radius = 200;
+            if (opts.collisionRadius === undefined) opts.collisionRadius = 500;
+            if (opts.interval === undefined) opts.interval = 50;
+            var pos = target.position || target;
+            return setInterval(function() {
+                var dist = sefl.mesh.position.distanceTo(pos);
+
+                if (dist < sefl.collisionRadius) {
+                    sefl._event.emit('collide', target);
+                }
+            }, opts.interval);
+        }
+
+        if (opts.target != undefined) {
+            for (var x = 0; x < opts.target.length; x++) {
+                var cTarget = opts.target[x];
+                _bT.notice(cTarget, {
+                    radius: 500
+                });
+                _bT._event.on('collide', function(cTarget) {
+                    console.log('collideX')
+                    game.scene.remove(cTarget.item.avatar);
+                });
+            }
+        }
+        this.live.push(_bT);
+        game.scene.add(_bT);
+    }
+
+
+    return this.local;
+
+}
+},{"events":76,"inherits":4}],4:[function(require,module,exports){
+if (typeof Object.create === 'function') {
+  // implementation from standard node.js 'util' module
+  module.exports = function inherits(ctor, superCtor) {
+    ctor.super_ = superCtor
+    ctor.prototype = Object.create(superCtor.prototype, {
+      constructor: {
+        value: ctor,
+        enumerable: false,
+        writable: true,
+        configurable: true
+      }
+    });
+  };
+} else {
+  // old school shim for old browsers
+  module.exports = function inherits(ctor, superCtor) {
+    ctor.super_ = superCtor
+    var TempCtor = function () {}
+    TempCtor.prototype = superCtor.prototype
+    ctor.prototype = new TempCtor()
+    ctor.prototype.constructor = ctor
+  }
+}
+
+},{}],5:[function(require,module,exports){
+var inherits = require('inherits');
+var EventEmitter = require('events').EventEmitter;
+
+module.exports = function(game) {
     return function(obj, opts) {
         return new Creature(game, obj, opts);
     };
@@ -1705,7 +1768,7 @@ Creature.prototype.notice = function(target, opts) {
         }
     }, opts.interval);
 };
-},{"events":71,"inherits":4}],4:[function(require,module,exports){
+},{"events":76,"inherits":6}],6:[function(require,module,exports){
 module.exports = inherits
 
 function inherits (c, p, proto) {
@@ -1736,7 +1799,7 @@ function inherits (c, p, proto) {
 //inherits(Child, Parent)
 //new Child
 
-},{}],5:[function(require,module,exports){
+},{}],7:[function(require,module,exports){
 var inherits = require('inherits');
 var lsb = require('lsb');
 var voxelMesh = require('voxel-engine/node_modules/voxel-mesh');
@@ -1894,32 +1957,9 @@ function load(image) {
 
     return text.slice(15);
 };
-},{"inherits":6,"lsb":7,"voxel-creature":3,"voxel-engine/node_modules/voxel":44,"voxel-engine/node_modules/voxel-mesh":36}],6:[function(require,module,exports){
-if (typeof Object.create === 'function') {
-  // implementation from standard node.js 'util' module
-  module.exports = function inherits(ctor, superCtor) {
-    ctor.super_ = superCtor
-    ctor.prototype = Object.create(superCtor.prototype, {
-      constructor: {
-        value: ctor,
-        enumerable: false,
-        writable: true,
-        configurable: true
-      }
-    });
-  };
-} else {
-  // old school shim for old browsers
-  module.exports = function inherits(ctor, superCtor) {
-    ctor.super_ = superCtor
-    var TempCtor = function () {}
-    TempCtor.prototype = superCtor.prototype
-    ctor.prototype = new TempCtor()
-    ctor.prototype.constructor = ctor
-  }
-}
-
-},{}],7:[function(require,module,exports){
+},{"inherits":8,"lsb":9,"voxel-creature":5,"voxel-engine/node_modules/voxel":46,"voxel-engine/node_modules/voxel-mesh":38}],8:[function(require,module,exports){
+module.exports=require(4)
+},{}],9:[function(require,module,exports){
 var spaceCode = ' '.charCodeAt(0)
 
 function stringToBits(str) {
@@ -2033,7 +2073,7 @@ module.exports = {
 , stringToBits: stringToBits
 }
 
-},{}],8:[function(require,module,exports){
+},{}],10:[function(require,module,exports){
 var process=require("__browserify_process");var voxel = require('voxel')
 var voxelMesh = require('voxel-mesh')
 var ray = require('voxel-raycast')
@@ -2768,7 +2808,7 @@ Game.prototype.destroy = function() {
   clearInterval(this.timer)
 }
 
-},{"./lib/detector":9,"./lib/stats":10,"__browserify_process":80,"aabb-3d":11,"collide-3d-tilemap":12,"events":71,"gl-matrix":13,"inherits":14,"interact":15,"kb-controls":24,"path":72,"pin-it":29,"raf":30,"spatial-events":31,"three":33,"tic":34,"voxel":44,"voxel-control":35,"voxel-mesh":36,"voxel-physical":37,"voxel-raycast":38,"voxel-region-change":39,"voxel-texture":40,"voxel-view":42}],9:[function(require,module,exports){
+},{"./lib/detector":11,"./lib/stats":12,"__browserify_process":85,"aabb-3d":13,"collide-3d-tilemap":14,"events":76,"gl-matrix":15,"inherits":16,"interact":17,"kb-controls":26,"path":77,"pin-it":31,"raf":32,"spatial-events":33,"three":35,"tic":36,"voxel":46,"voxel-control":37,"voxel-mesh":38,"voxel-physical":39,"voxel-raycast":40,"voxel-region-change":41,"voxel-texture":42,"voxel-view":44}],11:[function(require,module,exports){
 /**
  * @author alteredq / http://alteredqualia.com/
  * @author mr.doob / http://mrdoob.com/
@@ -2829,7 +2869,7 @@ module.exports = function() {
   };
 }
 
-},{}],10:[function(require,module,exports){
+},{}],12:[function(require,module,exports){
 /**
  * @author mrdoob / http://mrdoob.com/
  */
@@ -2975,7 +3015,7 @@ var Stats = function () {
 };
 
 module.exports = Stats
-},{}],11:[function(require,module,exports){
+},{}],13:[function(require,module,exports){
 module.exports = AABB
 
 var vec3 = require('gl-matrix').vec3
@@ -3074,7 +3114,7 @@ proto.union = function(aabb) {
   return new AABB([base_x, base_y, base_z], [max_x - base_x, max_y - base_y, max_z - base_z])
 }
 
-},{"gl-matrix":13}],12:[function(require,module,exports){
+},{"gl-matrix":15}],14:[function(require,module,exports){
 module.exports = function(field, tilesize, dimensions, offset) {
   dimensions = dimensions || [ 
     Math.sqrt(field.length) >> 0
@@ -3163,7 +3203,7 @@ module.exports = function(field, tilesize, dimensions, offset) {
   }  
 }
 
-},{}],13:[function(require,module,exports){
+},{}],15:[function(require,module,exports){
 /**
  * @fileoverview gl-matrix - High performance matrix and vector operations
  * @author Brandon Jones
@@ -6236,9 +6276,9 @@ if(typeof(exports) !== 'undefined') {
   })(shim.exports);
 })();
 
-},{}],14:[function(require,module,exports){
-module.exports=require(4)
-},{}],15:[function(require,module,exports){
+},{}],16:[function(require,module,exports){
+module.exports=require(6)
+},{}],17:[function(require,module,exports){
 var lock = require('pointer-lock')
   , drag = require('drag-stream')
   , full = require('fullscreen')
@@ -6345,7 +6385,7 @@ function usedrag(el) {
   return ee
 }
 
-},{"drag-stream":16,"events":71,"fullscreen":22,"pointer-lock":23,"stream":73}],16:[function(require,module,exports){
+},{"drag-stream":18,"events":76,"fullscreen":24,"pointer-lock":25,"stream":78}],18:[function(require,module,exports){
 module.exports = dragstream
 
 var Stream = require('stream')
@@ -6413,10 +6453,10 @@ function dragstream(el) {
   }
 }
 
-},{"domnode-dom":17,"stream":73,"through":21}],17:[function(require,module,exports){
+},{"domnode-dom":19,"stream":78,"through":23}],19:[function(require,module,exports){
 module.exports = require('./lib/index')
 
-},{"./lib/index":18}],18:[function(require,module,exports){
+},{"./lib/index":20}],20:[function(require,module,exports){
 var WriteStream = require('./writable')
   , ReadStream = require('./readable')
   , DOMStream = {}
@@ -6454,7 +6494,7 @@ DOMStream.createEventStream = function(el, type, preventDefault) {
 module.exports = DOMStream
 
 
-},{"./readable":19,"./writable":20}],19:[function(require,module,exports){
+},{"./readable":21,"./writable":22}],21:[function(require,module,exports){
 module.exports = DOMStream
 
 var Stream = require('stream').Stream
@@ -6565,7 +6605,7 @@ function valueFromElement(el) {
   return el.value
 }
 
-},{"stream":73}],20:[function(require,module,exports){
+},{"stream":78}],22:[function(require,module,exports){
 module.exports = DOMStream
 
 var Stream = require('stream').Stream
@@ -6647,7 +6687,7 @@ proto.constructTextPlain = function(data) {
   return [textNode]
 }
 
-},{"stream":73}],21:[function(require,module,exports){
+},{"stream":78}],23:[function(require,module,exports){
 var process=require("__browserify_process");var Stream = require('stream')
 
 // through
@@ -6747,7 +6787,7 @@ function through (write, end) {
 }
 
 
-},{"__browserify_process":80,"stream":73}],22:[function(require,module,exports){
+},{"__browserify_process":85,"stream":78}],24:[function(require,module,exports){
 module.exports = fullscreen
 fullscreen.available = available
 
@@ -6838,7 +6878,7 @@ function shim(el) {
     el.oRequestFullScreen)
 }
 
-},{"events":71}],23:[function(require,module,exports){
+},{"events":76}],25:[function(require,module,exports){
 module.exports = pointer
 
 pointer.available = available
@@ -7002,7 +7042,7 @@ function shim(el) {
     null
 }
 
-},{"events":71,"stream":73}],24:[function(require,module,exports){
+},{"events":76,"stream":78}],26:[function(require,module,exports){
 var ever = require('ever')
   , vkey = require('vkey')
   , max = Math.max
@@ -7099,7 +7139,7 @@ module.exports = function(el, bindings, state) {
   }
 }
 
-},{"ever":25,"vkey":28}],25:[function(require,module,exports){
+},{"ever":27,"vkey":30}],27:[function(require,module,exports){
 var EventEmitter = require('events').EventEmitter;
 
 module.exports = function (elem) {
@@ -7211,7 +7251,7 @@ Ever.typeOf = (function () {
     };
 })();;
 
-},{"./init.json":26,"./types.json":27,"events":71}],26:[function(require,module,exports){
+},{"./init.json":28,"./types.json":29,"events":76}],28:[function(require,module,exports){
 module.exports={
   "initEvent" : [
     "type",
@@ -7254,7 +7294,7 @@ module.exports={
   ]
 }
 
-},{}],27:[function(require,module,exports){
+},{}],29:[function(require,module,exports){
 module.exports={
   "MouseEvent" : [
     "click",
@@ -7299,7 +7339,7 @@ module.exports={
   ]
 }
 
-},{}],28:[function(require,module,exports){
+},{}],30:[function(require,module,exports){
 var ua = typeof window !== 'undefined' ? window.navigator.userAgent : ''
   , isOSX = /OS X/.test(ua)
   , isOpera = /Opera/.test(ua)
@@ -7437,7 +7477,7 @@ for(i = 112; i < 136; ++i) {
   output[i] = 'F'+(i-111)
 }
 
-},{}],29:[function(require,module,exports){
+},{}],31:[function(require,module,exports){
 module.exports = pin
 
 var pins = {}
@@ -7519,7 +7559,7 @@ function pin(item, every, obj, name) {
   }
 }
 
-},{}],30:[function(require,module,exports){
+},{}],32:[function(require,module,exports){
 module.exports = raf
 
 var EE = require('events').EventEmitter
@@ -7566,7 +7606,7 @@ function raf(el) {
 raf.polyfill = _raf
 raf.now = function() { return Date.now() }
 
-},{"events":71}],31:[function(require,module,exports){
+},{"events":76}],33:[function(require,module,exports){
 module.exports = SpatialEventEmitter
 
 var slice = [].slice
@@ -7698,7 +7738,7 @@ function finite(bbox) {
          isFinite(bbox.z1())
 }
 
-},{"./tree":32,"aabb-3d":11}],32:[function(require,module,exports){
+},{"./tree":34,"aabb-3d":13}],34:[function(require,module,exports){
 module.exports = Tree
 
 var aabb = require('aabb-3d')
@@ -7824,7 +7864,7 @@ proto.send = function(event, bbox, args) {
   }
 }
 
-},{"aabb-3d":11}],33:[function(require,module,exports){
+},{"aabb-3d":13}],35:[function(require,module,exports){
 var process=require("__browserify_process");var self = self || {};
 
 // High-resulution counter: emulate window.performance.now() for THREE.CLOCK
@@ -44782,7 +44822,7 @@ if (typeof exports !== 'undefined') {
   this['THREE'] = THREE;
 }
 
-},{"__browserify_process":80}],34:[function(require,module,exports){
+},{"__browserify_process":85}],36:[function(require,module,exports){
 /*
  * tic
  * https://github.com/shama/tic
@@ -44829,7 +44869,7 @@ Tic.prototype.tick = function(dt) {
   });
 };
 
-},{}],35:[function(require,module,exports){
+},{}],37:[function(require,module,exports){
 module.exports = control
 
 var Stream = require('stream').Stream
@@ -45112,7 +45152,7 @@ function clamp(value, to) {
   return isFinite(to) ? max(min(value, to), -to) : value
 }
 
-},{"stream":73}],36:[function(require,module,exports){
+},{"stream":78}],38:[function(require,module,exports){
 var THREE = require('three')
 
 module.exports = function(data, mesher, scaleFactor, three) {
@@ -45282,7 +45322,7 @@ Mesh.prototype.faceVertexUv = function(i) {
 }
 ;
 
-},{"three":33}],37:[function(require,module,exports){
+},{"three":35}],39:[function(require,module,exports){
 module.exports = physical
 
 var aabb = require('aabb-3d')
@@ -45501,7 +45541,7 @@ proto.atRestZ = function() {
   return this.resting.z
 }
 
-},{"aabb-3d":11,"three":33}],38:[function(require,module,exports){
+},{"aabb-3d":13,"three":35}],40:[function(require,module,exports){
 "use strict"
 
 function traceRay_impl(
@@ -45723,7 +45763,7 @@ function traceRay(voxels, origin, direction, max_d, hit_pos, hit_norm, EPSILON) 
 }
 
 module.exports = traceRay
-},{}],39:[function(require,module,exports){
+},{}],41:[function(require,module,exports){
 module.exports = coordinates
 
 var aabb = require('aabb-3d')
@@ -45751,7 +45791,7 @@ function coordinates(spatial, box, regionWidth) {
  
   return emitter
 }
-},{"aabb-3d":11,"events":71}],40:[function(require,module,exports){
+},{"aabb-3d":13,"events":76}],42:[function(require,module,exports){
 var tic = require('tic')();
 var createAtlas = require('atlaspack');
 
@@ -46138,7 +46178,7 @@ function memoize(func) {
   return memoized;
 }
 
-},{"atlaspack":41,"tic":34}],41:[function(require,module,exports){
+},{"atlaspack":43,"tic":36}],43:[function(require,module,exports){
 /*
  * atlaspack
  * https://github.com/shama/atlaspack
@@ -46396,7 +46436,7 @@ Atlas.prototype._debug = function() {
   });
 };
 
-},{}],42:[function(require,module,exports){
+},{}],44:[function(require,module,exports){
 var process=require("__browserify_process");var THREE, temporaryPosition, temporaryVector
 
 module.exports = function(three, opts) {
@@ -46484,7 +46524,7 @@ View.prototype.appendTo = function(element) {
 
   this.resizeWindow(this.width,this.height)
 }
-},{"__browserify_process":80}],43:[function(require,module,exports){
+},{"__browserify_process":85}],45:[function(require,module,exports){
 var events = require('events')
 var inherits = require('inherits')
 
@@ -46621,7 +46661,7 @@ Chunker.prototype.voxelVector = function(pos) {
   return [vx, vy, vz]
 };
 
-},{"events":71,"inherits":14}],44:[function(require,module,exports){
+},{"events":76,"inherits":16}],46:[function(require,module,exports){
 var chunker = require('./chunker')
 
 module.exports = function(opts) {
@@ -46717,7 +46757,7 @@ module.exports.generateExamples = function() {
 }
 
 
-},{"./chunker":43,"./meshers/culled":45,"./meshers/greedy":46,"./meshers/monotone":47,"./meshers/stupid":48}],45:[function(require,module,exports){
+},{"./chunker":45,"./meshers/culled":47,"./meshers/greedy":48,"./meshers/monotone":49,"./meshers/stupid":50}],47:[function(require,module,exports){
 //Naive meshing (with face culling)
 function CulledMesh(volume, dims) {
   //Precalculate direction vectors for convenience
@@ -46769,7 +46809,7 @@ if(exports) {
   exports.mesher = CulledMesh;
 }
 
-},{}],46:[function(require,module,exports){
+},{}],48:[function(require,module,exports){
 var GreedyMesh = (function() {
 //Cache buffer internally
 var mask = new Int32Array(4096);
@@ -46886,7 +46926,7 @@ if(exports) {
   exports.mesher = GreedyMesh;
 }
 
-},{}],47:[function(require,module,exports){
+},{}],49:[function(require,module,exports){
 "use strict";
 
 var MonotoneMesh = (function(){
@@ -47139,7 +47179,7 @@ if(exports) {
   exports.mesher = MonotoneMesh;
 }
 
-},{}],48:[function(require,module,exports){
+},{}],50:[function(require,module,exports){
 //The stupidest possible way to generate a Minecraft mesh (I think)
 function StupidMesh(volume, dims) {
   var vertices = [], faces = [], x = [0,0,0], n = 0;
@@ -47175,87 +47215,96 @@ if(exports) {
   exports.mesher = StupidMesh;
 }
 
-},{}],49:[function(require,module,exports){
+},{}],51:[function(require,module,exports){
 var skin = require('minecraft-skin');
 
-module.exports = function (game) {
+module.exports = function(game) {
     var mountPoint;
     var possessed;
-    
-    return function (img, skinOpts) {
+
+    return function(img, skinOpts) {
         if (!skinOpts) {
-          skinOpts = {};
+            skinOpts = {};
         }
         skinOpts.scale = skinOpts.scale || new game.THREE.Vector3(0.04, 0.04, 0.04);
         var playerSkin = skin(game.THREE, img, skinOpts);
         var player = playerSkin.mesh;
         var physics = game.makePhysical(player);
         physics.playerSkin = playerSkin;
-        
+
         player.position.set(0, 562, -20);
         game.scene.add(player);
         game.addItem(physics);
-        
+
         physics.yaw = player;
         physics.pitch = player.head;
         physics.subjectTo(game.gravity);
         physics.blocksCreation = true;
-        
+
         game.control(physics);
-        
-        physics.move = function (x, y, z) {
+
+        physics.move = function(x, y, z) {
             var xyz = parseXYZ(x, y, z);
             physics.yaw.position.x += xyz.x;
             physics.yaw.position.y += xyz.y;
             physics.yaw.position.z += xyz.z;
         };
-        
-        physics.moveTo = function (x, y, z) {
+
+        physics.moveTo = function(x, y, z) {
             var xyz = parseXYZ(x, y, z);
             physics.yaw.position.x = xyz.x;
             physics.yaw.position.y = xyz.y;
             physics.yaw.position.z = xyz.z;
         };
-        
+
         var pov = 1;
-        physics.pov = function (type) {
+        physics.pov = function(type) {
             if (type === 'first' || type === 1) {
                 pov = 1;
-            }
-            else if (type === 'third' || type === 3) {
+            } else if (type === 'third' || type === 3) {
                 pov = 3;
             }
             physics.possess();
         };
-        
-        physics.toggle = function () {
+
+        physics.toggle = function() {
             physics.pov(pov === 1 ? 3 : 1);
         };
-        
-        physics.possess = function () {
+
+        physics.possess = function() {
             if (possessed) possessed.remove(game.camera);
             var key = pov === 1 ? 'cameraInside' : 'cameraOutside';
             player[key].add(game.camera);
             possessed = player[key];
         };
-        
+
         physics.position = physics.yaw.position;
-        
+
         return physics;
     }
 };
 
-function parseXYZ (x, y, z) {
+function parseXYZ(x, y, z) {
     if (typeof x === 'object' && Array.isArray(x)) {
-        return { x: x[0], y: x[1], z: x[2] };
+        return {
+            x: x[0],
+            y: x[1],
+            z: x[2]
+        };
+    } else if (typeof x === 'object') {
+        return {
+            x: x.x || 0,
+            y: x.y || 0,
+            z: x.z || 0
+        };
     }
-    else if (typeof x === 'object') {
-        return { x: x.x || 0, y: x.y || 0, z: x.z || 0 };
-    }
-    return { x: Number(x), y: Number(y), z: Number(z) };
+    return {
+        x: Number(x),
+        y: Number(y),
+        z: Number(z)
+    };
 }
-
-},{"minecraft-skin":50}],50:[function(require,module,exports){
+},{"minecraft-skin":52}],52:[function(require,module,exports){
 var THREE
 
 module.exports = function(three, image, sizeRatio) {
@@ -47627,7 +47676,7 @@ Skin.prototype.createPlayerObject = function(scene) {
   playerGroup.scale = this.scale
   return playerGroup
 }
-},{}],51:[function(require,module,exports){
+},{}],53:[function(require,module,exports){
 module.exports = function(game) {
   var THREE = game.THREE
     , EffectComposer = Composer.EffectComposer = require('three-effectcomposer')(THREE)
@@ -47696,7 +47745,7 @@ module.exports = function(game) {
   return composer
 };
 
-},{"three-effectcomposer":52}],52:[function(require,module,exports){
+},{"three-effectcomposer":54}],54:[function(require,module,exports){
 /**
  * @author alteredq / http://alteredqualia.com/
  */
@@ -47848,7 +47897,7 @@ module.exports = function(THREE) {
 
   return EffectComposer
 };
-},{"./lib/bloompass":53,"./lib/clearmaskpass":54,"./lib/convolutionshader":55,"./lib/filmpass":56,"./lib/filmshader":57,"./lib/maskpass":58,"./lib/renderpass":59,"./lib/shaderextras":60,"./lib/shaderpass":61,"three-copyshader":62}],53:[function(require,module,exports){
+},{"./lib/bloompass":55,"./lib/clearmaskpass":56,"./lib/convolutionshader":57,"./lib/filmpass":58,"./lib/filmshader":59,"./lib/maskpass":60,"./lib/renderpass":61,"./lib/shaderextras":62,"./lib/shaderpass":63,"three-copyshader":64}],55:[function(require,module,exports){
 /**
  * @author alteredq / http://alteredqualia.com/
  */
@@ -47963,7 +48012,7 @@ BloomPass.prototype = {
 
 }
 
-},{}],54:[function(require,module,exports){
+},{}],56:[function(require,module,exports){
 /**
  * @author alteredq / http://alteredqualia.com/
  */
@@ -47983,7 +48032,7 @@ module.exports = function(THREE) {
 
   return ClearMaskPass
 };
-},{}],55:[function(require,module,exports){
+},{}],57:[function(require,module,exports){
 /**
  * @author alteredq / http://alteredqualia.com/
  *
@@ -48089,7 +48138,7 @@ module.exports = function(THREE) {
 
 };
 
-},{}],56:[function(require,module,exports){
+},{}],58:[function(require,module,exports){
 /**
  * @author alteredq / http://alteredqualia.com/
  */
@@ -48148,7 +48197,7 @@ module.exports = function(THREE, EffectComposer) {
 
 	return FilmPass
 }
-},{}],57:[function(require,module,exports){
+},{}],59:[function(require,module,exports){
 /**
  * @author alteredq / http://alteredqualia.com/
  *
@@ -48254,7 +48303,7 @@ module.exports = {
 
 };
 
-},{}],58:[function(require,module,exports){
+},{}],60:[function(require,module,exports){
 /**
  * @author alteredq / http://alteredqualia.com/
  */
@@ -48327,7 +48376,7 @@ module.exports = function(THREE) {
   return MaskPass
 };
 
-},{}],59:[function(require,module,exports){
+},{}],61:[function(require,module,exports){
 /**
  * @author alteredq / http://alteredqualia.com/
  */
@@ -48386,7 +48435,7 @@ module.exports = function(THREE) {
 
 };
 
-},{}],60:[function(require,module,exports){
+},{}],62:[function(require,module,exports){
 /**
  * @author alteredq / http://alteredqualia.com/
  * @author zz85 / http://www.lab4games.net/zz85/blog
@@ -50172,7 +50221,7 @@ module.exports = function(THREE) {
 
 }
 
-},{}],61:[function(require,module,exports){
+},{}],63:[function(require,module,exports){
 /**
  * @author alteredq / http://alteredqualia.com/
  */
@@ -50230,7 +50279,7 @@ module.exports = function(THREE, EffectComposer) {
   return ShaderPass;
 
 };
-},{}],62:[function(require,module,exports){
+},{}],64:[function(require,module,exports){
 /**
  * @author alteredq / http://alteredqualia.com/
  *
@@ -50268,7 +50317,145 @@ module.exports = {
   ].join("\n")
 };
 
-},{}],63:[function(require,module,exports){
+},{}],65:[function(require,module,exports){
+var inherits = require('inherits');
+var lsb = require('lsb');
+var EventEmitter = require('events').EventEmitter;
+var Creature = require('voxel-creature').Creature;
+module.exports = function(game) {
+    return function(opts) {
+        return new Vader(game, opts || {});
+    };
+};
+
+inherits(Vader, Creature);
+module.exports.Vader = Vader;
+
+function Vader(game, opts) {
+    if (!opts) opts = {};
+    if (opts.clr == undefined) opts.clr = [0xffffff, 0x800830];
+    if (opts.amb == undefined) opts.amb = [0x800830, 0x800830];
+    if (opts.size == undefined) opts.size = 5;
+    if (opts.step == undefined) opts.step = opts.size / 5;
+    if (opts.padding == undefined) opts.padding = parseInt(opts.size / 2);
+    if (opts.message == undefined) opts.message = 'wtf';
+    if (opts.mats == undefined) opts.mats = [
+        new game.THREE.MeshLambertMaterial({
+            color: opts.clr[1],
+            ambient: opts.amb[1]
+        }),
+        new game.THREE.MeshLambertMaterial({
+            color: opts.clr[0],
+            ambient: opts.amb[0]
+        }),
+    ];
+    this.size = opts.size;
+    this.step = opts.step;
+    this.padding = opts.padding;
+    this.mats = opts.mats;
+
+    var createVader = function(mat) {
+        return new game.THREE.Mesh(
+            new game.THREE.CubeGeometry(1, 1, 1),
+            mat
+        );
+    }
+    var VaderMesh = function(obj) {
+        obj.vaderObj = new game.THREE.Object3D;
+        obj.bg = new game.THREE.Object3D();
+        var col = [];
+        for (var j = 0; j < obj.size; j += obj.step) {
+            var m = 1;
+            col[j] = [];
+            for (var i = 0; i < obj.size / 2; i += obj.step) {
+                c = (Math.random(1) > .5) ? false : true;
+                col[j][i] = c;
+                col[j][i + (obj.size - obj.step) / m] = c;
+                m++;
+            }
+        }
+        for (var j = 0; j < obj.size; j += obj.step) {
+            for (var i = 0; i < obj.size; i += obj.step) {
+                var vaders = createVader(obj.mats[0]);
+                var vader2 = createVader(obj.mats[0]);
+                var vadersBG = createVader(obj.mats[1]);
+                vadersBG.position.set(i, j, 4);
+                vadersBG.visible = col[j][i];
+                vaders.position.set(i, j, 5);
+                vaders.visible = col[j][i];
+                vader2.position.set(i, j, 6);
+                vader2.visible = col[j][i];
+                vadersBG.vaderT = "bg";
+                vaders.vaderT = "front";
+                vader2.vaderT = "front";
+                obj.bg.add(vadersBG);
+                obj.vaderObj.add(obj.bg);
+                obj.vaderObj.add(vaders);
+                obj.vaderObj.add(vader2);
+            }
+        }
+        return obj.vaderObj;
+    }
+
+    var vd = VaderMesh(this);
+    /// merging geometry
+    var visibileArrBG = new Array();
+    var visibileArr = new Array();
+    var meshInvaderVisibile = function(obj) {
+        for (var i = 0; obj.children.length > i; i++) {
+            if (obj.children[i].children.length == 0 && obj.children[i].visible == true && obj.children[i].vaderT == "bg") {
+                visibileArrBG.push(obj.children[i]);
+            } else if (obj.children[i].visible == true && obj.children[i].vaderT == "front") {
+                visibileArr.push(obj.children[i]);
+            } else {
+                meshInvaderVisibile(obj.children[i])
+            }
+        }
+    }
+    meshInvaderVisibile(vd);
+    var mergedGeo = new game.THREE.Geometry();
+    var mergedGeoBG = new game.THREE.Geometry();
+    for (var i = 0; visibileArr.length > i; i++) {
+        if (i != 0) {
+            game.THREE.GeometryUtils.merge(mergedGeo, visibileArr[i]);
+        }
+    }
+    for (var i = 0; visibileArrBG.length > i; i++) {
+        if (i != 0) {
+            game.THREE.GeometryUtils.merge(mergedGeoBG, visibileArrBG[i]);
+        }
+    }
+    groups = [];
+    groups.push(new game.THREE.Mesh(mergedGeoBG, this.mats[0]));
+    groups.push(new game.THREE.Mesh(mergedGeo, this.mats[1]));
+
+    var removeNonMerged = function(obj) {
+        for (var i = 0; obj.children.length > i; i++) {
+            if (obj.children != undefined && obj.children[i].children.length == 0 && obj.children[i].visible == true) {
+                obj.children[i].visible = false;
+                obj.children[i].vaderT = "hidden";
+                removeNonMerged(vd);
+            } else if (obj.children != undefined) {
+                removeNonMerged(obj.children[i]);
+            }
+        }
+    }
+    removeNonMerged(vd);
+    for (var i = 0; i < groups.length; i++) {
+        vd.add(groups[i]);
+    }
+
+    var spaceVader = Creature.call(this, game, vd, {
+        size: opts.size
+    });
+    return spaceVader;
+
+}
+},{"events":76,"inherits":66,"lsb":67,"voxel-creature":5}],66:[function(require,module,exports){
+module.exports=require(4)
+},{}],67:[function(require,module,exports){
+module.exports=require(9)
+},{}],68:[function(require,module,exports){
 vertexShader =
     ["uniform sampler2D noiseTexture;",
     "uniform float noiseScale;",
@@ -51537,7 +51724,7 @@ Effect.prototype.exportToJSON = function(shaderCode) {
 
     return result;
 }
-},{}],64:[function(require,module,exports){
+},{}],69:[function(require,module,exports){
 
 
 //
@@ -51755,7 +51942,7 @@ if (typeof Object.getOwnPropertyDescriptor === 'function') {
   exports.getOwnPropertyDescriptor = valueObject;
 }
 
-},{}],65:[function(require,module,exports){
+},{}],70:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -51828,7 +52015,7 @@ function onend() {
   timers.setImmediate(shims.bind(this.end, this));
 }
 
-},{"_shims":64,"_stream_readable":67,"_stream_writable":69,"timers":75,"util":76}],66:[function(require,module,exports){
+},{"_shims":69,"_stream_readable":72,"_stream_writable":74,"timers":80,"util":81}],71:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -51871,7 +52058,7 @@ PassThrough.prototype._transform = function(chunk, encoding, cb) {
   cb(null, chunk);
 };
 
-},{"_stream_transform":68,"util":76}],67:[function(require,module,exports){
+},{"_stream_transform":73,"util":81}],72:[function(require,module,exports){
 var process=require("__browserify_process");// Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -52792,7 +52979,7 @@ function endReadable(stream) {
   }
 }
 
-},{"__browserify_process":80,"_shims":64,"buffer":78,"events":71,"stream":73,"string_decoder":74,"timers":75,"util":76}],68:[function(require,module,exports){
+},{"__browserify_process":85,"_shims":69,"buffer":83,"events":76,"stream":78,"string_decoder":79,"timers":80,"util":81}],73:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -52998,7 +53185,7 @@ function done(stream, er) {
   return stream.push(null);
 }
 
-},{"_stream_duplex":65,"util":76}],69:[function(require,module,exports){
+},{"_stream_duplex":70,"util":81}],74:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -53368,7 +53555,7 @@ function endWritable(stream, state, cb) {
   state.ended = true;
 }
 
-},{"buffer":78,"stream":73,"timers":75,"util":76}],70:[function(require,module,exports){
+},{"buffer":83,"stream":78,"timers":80,"util":81}],75:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -53685,7 +53872,7 @@ assert.doesNotThrow = function(block, /*optional*/message) {
 };
 
 assert.ifError = function(err) { if (err) {throw err;}};
-},{"_shims":64,"util":76}],71:[function(require,module,exports){
+},{"_shims":69,"util":81}],76:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -53966,7 +54153,7 @@ EventEmitter.listenerCount = function(emitter, type) {
     ret = emitter._events[type].length;
   return ret;
 };
-},{"util":76}],72:[function(require,module,exports){
+},{"util":81}],77:[function(require,module,exports){
 var process=require("__browserify_process");// Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -54177,7 +54364,7 @@ exports.extname = function(path) {
   return splitPath(path)[3];
 };
 
-},{"__browserify_process":80,"_shims":64,"util":76}],73:[function(require,module,exports){
+},{"__browserify_process":85,"_shims":69,"util":81}],78:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -54306,7 +54493,7 @@ Stream.prototype.pipe = function(dest, options) {
   return dest;
 };
 
-},{"_stream_duplex":65,"_stream_passthrough":66,"_stream_readable":67,"_stream_transform":68,"_stream_writable":69,"events":71,"util":76}],74:[function(require,module,exports){
+},{"_stream_duplex":70,"_stream_passthrough":71,"_stream_readable":72,"_stream_transform":73,"_stream_writable":74,"events":76,"util":81}],79:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -54499,7 +54686,7 @@ function base64DetectIncompleteChar(buffer) {
   return incomplete;
 }
 
-},{"buffer":78}],75:[function(require,module,exports){
+},{"buffer":83}],80:[function(require,module,exports){
 try {
     // Old IE browsers that do not curry arguments
     if (!setTimeout.call) {
@@ -54618,7 +54805,7 @@ if (!exports.setImmediate) {
   };
 }
 
-},{}],76:[function(require,module,exports){
+},{}],81:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -55163,7 +55350,7 @@ function hasOwnProperty(obj, prop) {
   return Object.prototype.hasOwnProperty.call(obj, prop);
 }
 
-},{"_shims":64}],77:[function(require,module,exports){
+},{"_shims":69}],82:[function(require,module,exports){
 exports.readIEEE754 = function(buffer, offset, isBE, mLen, nBytes) {
   var e, m,
       eLen = nBytes * 8 - mLen - 1,
@@ -55249,7 +55436,7 @@ exports.writeIEEE754 = function(buffer, value, offset, isBE, mLen, nBytes) {
   buffer[offset + i - d] |= s * 128;
 };
 
-},{}],78:[function(require,module,exports){
+},{}],83:[function(require,module,exports){
 var assert;
 exports.Buffer = Buffer;
 exports.SlowBuffer = Buffer;
@@ -56375,7 +56562,7 @@ Buffer.prototype.writeDoubleBE = function(value, offset, noAssert) {
   writeDouble(this, value, offset, true, noAssert);
 };
 
-},{"./buffer_ieee754":77,"assert":70,"base64-js":79}],79:[function(require,module,exports){
+},{"./buffer_ieee754":82,"assert":75,"base64-js":84}],84:[function(require,module,exports){
 (function (exports) {
 	'use strict';
 
@@ -56461,7 +56648,7 @@ Buffer.prototype.writeDoubleBE = function(value, offset, noAssert) {
 	module.exports.fromByteArray = uint8ToBase64;
 }());
 
-},{}],80:[function(require,module,exports){
+},{}],85:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
