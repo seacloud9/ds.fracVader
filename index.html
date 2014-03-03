@@ -66,17 +66,22 @@
     <div id="loader">
         <div id="loadingFill"></div>
     </div>
-    <!-- <img src="images/logoOmega.png" id="logo" class="unselectable"  />
-    <div id="container" style="float:left; width:100%; display:none"></div>
-    <div id="phaser" style="float:left; width:100%; display:none"></div>
-    <img src="images/cockpit1a.svg" id="cockpit" class="unselectable" style="display:none" /> -->
     <canvas id="uiCanvas" style="float:left; width:100%; " ></canvas>
     <div id="container" style="float:left; width:100%; display:none"></div>
     
     <script type="text/javascript">
-    function startFracVader(){
-        window.onload = function(){
-            var  _width = window.innerWidth,
+
+    var preload = new createjs.LoadQueue(false);
+    preload.addEventListener("fileload", handleFileComplete);
+    preload.addEventListener("complete", startFracVader);
+    preload.addEventListener("progress", handleOverallProgress);
+    preload.loadFile("http://code.jquery.com/jquery-1.9.1.min.js");
+    preload.loadFile("ui.js");
+    preload.loadFile('bundle.js');
+    // Overall progress handler
+    function startFracVader() {
+        window.onload = function() {
+            _width = window.innerWidth,
             _height = window.innerHeight,
             canvas = document.getElementById("uiCanvas");
             canvas.style.height = _height + "px";
@@ -85,40 +90,33 @@
             stage.width = stage.canvas.width = _width,
             stage.height = stage.canvas.height = _height,
             _stBounds = stage.getBounds();
-            img = new Image(),
+            var img = new Image();
             img.src = "images/logoOmega.png";
-            img.onload = function(evt){
-                    logoBt = new createjs.Bitmap(evt.target);
-                    stage.addChild(logoBt);
-                    logoBt.scaleX = 0.8;
-                    logoBt.scaleY = 0.8;
-                    var lBounds = logoBt.getBounds();
-                    logoBt.x = (stage.width - (lBounds.width * 0.8))/2;
-                    logoBt.y = (stage.height - (lBounds.height * 0.8))/2;
+            img.onload = function(evt) {
+                logoBt = new createjs.Bitmap(evt.target);
+                stage.addChild(logoBt);
+                logoBt.scaleX = 0.8;
+                logoBt.scaleY = 0.8;
+                var lBounds = logoBt.getBounds();
+                logoBt.x = (stage.width - (lBounds.width * 0.8)) / 2;
+                logoBt.y = (stage.height - (lBounds.height * 0.8)) / 2;
+                logoBt.alpha = 0;
+                createjs.Tween.get(logoBt).to({
+                    alpha: 1
+                }, 400);
+                logoBt.on('click', function() {
                     logoBt.alpha = 0;
-                    createjs.Tween.get(logoBt).to({alpha:1},400);
-                    logoBt.on('click',function(){
-                        createjs.Tween.get(logoBt).to({alpha:0},400);
-                        canvas.className = canvas.className + " unselectable";
-                        //startFracVaders()
-                    });
+                    canvas.className = canvas.className + " unselectable";
+                    //startFracVaders()
+                });
             }
-            
             startFracIntro();
             createjs.Ticker.addEventListener("tick", handleTick);
             function handleTick(event) {
-              stage.update();
+                stage.update();
             }
         }
-           
     }
-    var preload = new createjs.LoadQueue(false);
-    preload.addEventListener("fileload", handleFileComplete);
-    preload.addEventListener("complete", startFracVader);
-    preload.addEventListener("progress", handleOverallProgress);
-    preload.loadFile("http://code.jquery.com/jquery-1.9.1.min.js");
-    preload.loadFile('bundle.js');
-    // Overall progress handler
     function handleOverallProgress(event) {
         var perc = preload.progress*100;
         var lf = document.getElementById("loadingFill");

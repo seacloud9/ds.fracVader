@@ -16,9 +16,9 @@ mouse = {
 
 
 window.game = createGame({
-    chunkDistance: 2,
+    chunkDistance: 3,
     skyColor: 0x000000,
-    chunkSize: 16,
+    chunkSize: 8,
     worldOrigin: [0, 0, 0],
     generateChunks: false,
     texturePath: 'textures/',
@@ -70,7 +70,8 @@ var critterCreator = require('voxel-critter')(game);
 var clock = new game.THREE.Clock();
 window.game.view.renderer.autoClear = true;
 game.tic = tic;
-game.scene.fog.far = 90000;
+//game.scene.fog.far = 90000;
+game.scene.fog.far = 2000;
 game.gravity = [0, 0, 0];
 game.paused = false
 game.appendTo('#container');
@@ -81,14 +82,13 @@ window.addEventListener('keydown', function(ev) {
     // /console.log(ev.keyCode);
     if (ev.keyCode === 'R'.charCodeAt(0)) {
         player.toggle();
-        var d = $('#cockpit').css('display');
-        if (d == 'block') {
-            $('#cockpit').hide();
+        if (cockpit.alpha) {
+            cockpit.alpha = 0;
             player.avatar.head.children[4].visible = true;
             cockpitView = false;
             player.currentCamera = player.avatar.cameraOutside.children[0];
         } else {
-            $('#cockpit').show();
+            cockpit.alpha = 1;
             player.avatar.head.children[4].visible = false;
             cockpitView = true;
             player.currentCamera = player.avatar.cameraInside.children[1];
