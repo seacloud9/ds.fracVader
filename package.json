@@ -26,7 +26,8 @@
         "voxel-pp": "git://github.com/seacloud9/voxel-pp.git",
         "voxel-bullet": "git://github.com/seacloud9/voxel-bullet.git",
         "voxel-vader": "git://github.com/seacloud9/voxel-vader.git",
-        "Shader-Particles": "git://github.com/seacloud9/ShaderParticleEngine.git"
+        "Shader-Particles": "git://github.com/seacloud9/ShaderParticleEngine.git",
+        "voxel-perlin-terrain": "1.0.0"
     },
     "devDependencies": {
         "browservefy": "0.0.10"

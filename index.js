@@ -14,10 +14,11 @@ mouse = {
     y: 0
 };
 
+
 window.game = createGame({
-    chunkDistance: 3,
+    chunkDistance: 2,
     skyColor: 0x000000,
-    chunkSize: 32,
+    chunkSize: 16,
     worldOrigin: [0, 0, 0],
     generateChunks: false,
     texturePath: 'textures/',
@@ -47,6 +48,24 @@ window.game = createGame({
 
 });
 
+
+function generateVx() {
+    var perlinTerrain = require('voxel-perlin-terrain');
+    var terrainGenerator = perlinTerrain('foobar', 0, 5);
+    game.voxels.on('missingChunk', function(chunkPosition) {
+        var size = game.chunkSize
+        var voxels = terrainGenerator(chunkPosition, size)
+        var chunk = {
+            position: chunkPosition,
+            dims: [size, size, size],
+            voxels: voxels
+        }
+        game.showChunk(chunk)
+    });
+}
+
+
+
 var critterCreator = require('voxel-critter')(game);
 var clock = new game.THREE.Clock();
 window.game.view.renderer.autoClear = true;
@@ -59,6 +78,7 @@ document.addEventListener('mousemove', onDocumentMouseMove, false);
 var vaderBullet = require('voxel-bullet');
 _bullet = vaderBullet(game)();
 window.addEventListener('keydown', function(ev) {
+    // /console.log(ev.keyCode);
     if (ev.keyCode === 'R'.charCodeAt(0)) {
         player.toggle();
         var d = $('#cockpit').css('display');
@@ -73,6 +93,13 @@ window.addEventListener('keydown', function(ev) {
             cockpitView = true;
             player.currentCamera = player.avatar.cameraInside.children[1];
         }
+    }
+    if (ev.keyCode == 87) {
+        var rP = new game.THREE.Vector3(mouse.x, mouse.y, 1);
+        var pro = new game.THREE.Projector();
+        pro.unprojectVector(rP, player.currentCamera);
+        var ray = new game.THREE.Ray(player.position, rP.sub(player.position).normalize());
+        player.avatar.translateY(0.5 * ray.direction.y)
     }
     if (ev.keyCode == 32) {
         ev.preventDefault();
@@ -112,7 +139,7 @@ onWindowResize = function(event) {
 window.addEventListener('resize', onWindowResize, false);
 
 startFracVaders = function() {
-    $('#logo').hide();
+    generateVx();
     window.game.scene.remove(window.game.scene.__objects[1]);
     initPostProcess();
     canvasCallback = $.Callbacks();
@@ -161,7 +188,7 @@ startFracVaders = function() {
         player.playerSkin.leftArm.visible = false;
         player.playerSkin.leftLeg.visible = false;
         player.playerSkin.head.visible = false;
-        player.yaw.position.set(0, 2, 0);
+        player.yaw.position.set(0, 10, 0);
         var myMat = new game.THREE.MeshLambertMaterial({
             color: 0x800830,
             ambient: 0x800830
@@ -179,76 +206,37 @@ startFracVaders = function() {
         player.avatar.name = "omegavader";
         //player.friction = new game.THREE.Vector3(1, 1, 10);
         //player.move([0,0,-0.000005]);
+
+
+        // physicalObject is most likely going to be your [voxel-player](https://github.com/substack/voxel-player)
+        // e.g.:
+
         player.possess();
-        /*player.on('collide', function(creature) {
-            console.log('collide2');
-        });*/
+
         player.avatar.add(window.game.starTunnel.mesh);
         player.currentCamera = player.avatar.cameraInside.children[1];
-        window.game.starTunnel.mesh.position.z = -90;
-        window.game.starTunnel.mesh.position.y = 20;
+        game.starTunnel.mesh.position.z = -90;
+        game.starTunnel.mesh.position.y = 20;
 
         $('#loader').hide();
         $('#container').fadeIn("fast");
-        $('#cockpit').css('bottom', '0px');
+        /* $('#cockpit').css('bottom', '0px');
         $('#cockpit').fadeIn("fast");
-        $('#phaser').remove();
+        $('#phaser').remove();*/
 
-        // createCreaures();
+
         vv = require('voxel-vader');
         _vv = vv(game)(game);
         _vv.message = 'c1';
         _vv.position.y = 10;
         _vv.position.x = 0;
-        _vv.position.z = -80;
-
-        _vv.on('notice', function(player) {
-            // console.log('hit');
-            _vv.lookAt(player);
-            _vv.move(((player.position.x - _vv.position.x) * 0.001), ((player.position.y - _vv.position.y) * 0.001), ((player.position.z - _vv.position.z) * 0.001));
-        });
-
-        _vv.on('collide', function(player) {
-            console.log(this.message);
-            //console.log('collide1');
-        });
-        _vv.notice(player, {
-            radius: 500
-        });
-
-        setInterval(function() {
-            if (_vv.noticed) return;
-            //creature.rotation.y += Math.random() * Math.PI / 2 - Math.PI / 4;
-            //creature.move(0, 0, 0.5 * Math.random());
-        }, 1000);
+        _vv.position.z = -50;
         _liveBogeys.push(_vv);
-
-
         _vv2 = vv(game)(game);
         _vv2.message = 'c2';
         _vv2.position.y = 10;
         _vv2.position.x = 0;
-        _vv2.position.z = -80;
-
-        _vv2.on('notice', function(player) {
-            // console.log('hit');
-            _vv2.lookAt(player);
-            _vv2.move(((player.position.x - _vv.position.x) * 0.001), ((player.position.y - _vv.position.y) * 0.001), ((player.position.z - _vv.position.z) * 0.001));
-        });
-
-        _vv2.on('collide', function(player) {
-            // console.log(this.message);
-            //console.log('collide1');
-        });
-        _vv2.notice(player, {
-            radius: 500
-        });
-
-        setInterval(function() {
-            if (_vv2.noticed) return;
-            //creature.rotation.y += Math.random() * Math.PI / 2 - Math.PI / 4;
-            //creature.move(0, 0, 0.5 * Math.random());
-        }, 1000);
+        _vv2.position.z = -450;
         _liveBogeys.push(_vv2);
 
     }
@@ -268,16 +256,7 @@ function onDocumentMouseMove(e) {
 startFracIntro = function() {
     player = null;
     $('#loader').hide();
-
-    $('#container').fadeIn("fast", function() {
-        var l = (($('body').width() / 2) - ($('#logo').width() / 2));
-        var t = (($('body').height() / 2) + ($('#logo').height() / 2));
-        $('#logo').css({
-            'left': l + 'px',
-            'top': t + 'px'
-        });
-        $('#logo').fadeIn('fast');
-    });
+    $('#container').fadeIn("fast");
     window.game.scene.fog.color = {
         r: 0,
         g: 0,
@@ -325,8 +304,8 @@ startFracIntro = function() {
         }
     }
     uniformsTunnelFS.iChannel0.value.wrapS = uniformsTunnelFS.iChannel0.value.wrapT = window.game.THREE.RepeatWrapping;
-    uniformsTunnelFS.resolution.value.x = $('#container').width();
-    uniformsTunnelFS.resolution.value.y = $('#container').height();
+    uniformsTunnelFS.resolution.value.x = _width;
+    uniformsTunnelFS.resolution.value.y = _height;
     tunnelMat = new window.game.THREE.ShaderMaterial({
         uniforms: uniformsTunnelFS,
         vertexShader: tunnelFVVS,
@@ -338,19 +317,27 @@ startFracIntro = function() {
     window.game.scene.add(mesh);
     window.game.camera.position.z = 1;
     window.game.camera.useQuaternion = true;
+    window.game.camera.far = 2000;
     game.on('tick', function(delta) {
         uniformsTunnelFS.time.value += 0.01;
         if (typeof _bullet != undefined) {
             var speed = delta * _bullet.speed;
             for (var i = _bullet.live.length - 1; i >= 0; i--) {
-                var b = _bullet.live[i].mesh,
-                    p = b.position,
-                    d = b.ray.direction;
-                var hit = false;
-                if (!hit) {
+                try {
+                    var b = _bullet.live[i].mesh;
+                    var gcDist = b.position.distanceTo(game.camera.position);
+                    if (game.camera.far < gcDist) {
+                        _bullet.live.splice(b.id, 1);
+                        b.Destroy();
+                        game.scene.remove(b);
+                    }
+                    var p = b.position,
+                        d = b.ray.direction;
                     b.translateX(speed * d.x);
                     b.translateY(speed * d.y);
                     b.translateZ(speed * d.z);
+                } catch (e) {
+                    break;
                 }
             }
         }

@@ -15,10 +15,11 @@ mouse = {
     y: 0
 };
 
+
 window.game = createGame({
-    chunkDistance: 3,
+    chunkDistance: 2,
     skyColor: 0x000000,
-    chunkSize: 32,
+    chunkSize: 16,
     worldOrigin: [0, 0, 0],
     generateChunks: false,
     texturePath: 'textures/',
@@ -48,6 +49,24 @@ window.game = createGame({
 
 });
 
+
+function generateVx() {
+    var perlinTerrain = require('voxel-perlin-terrain');
+    var terrainGenerator = perlinTerrain('foobar', 0, 5);
+    game.voxels.on('missingChunk', function(chunkPosition) {
+        var size = game.chunkSize
+        var voxels = terrainGenerator(chunkPosition, size)
+        var chunk = {
+            position: chunkPosition,
+            dims: [size, size, size],
+            voxels: voxels
+        }
+        game.showChunk(chunk)
+    });
+}
+
+
+
 var critterCreator = require('voxel-critter')(game);
 var clock = new game.THREE.Clock();
 window.game.view.renderer.autoClear = true;
@@ -60,6 +79,7 @@ document.addEventListener('mousemove', onDocumentMouseMove, false);
 var vaderBullet = require('voxel-bullet');
 _bullet = vaderBullet(game)();
 window.addEventListener('keydown', function(ev) {
+    // /console.log(ev.keyCode);
     if (ev.keyCode === 'R'.charCodeAt(0)) {
         player.toggle();
         var d = $('#cockpit').css('display');
@@ -74,6 +94,13 @@ window.addEventListener('keydown', function(ev) {
             cockpitView = true;
             player.currentCamera = player.avatar.cameraInside.children[1];
         }
+    }
+    if (ev.keyCode == 87) {
+        var rP = new game.THREE.Vector3(mouse.x, mouse.y, 1);
+        var pro = new game.THREE.Projector();
+        pro.unprojectVector(rP, player.currentCamera);
+        var ray = new game.THREE.Ray(player.position, rP.sub(player.position).normalize());
+        player.avatar.translateY(0.5 * ray.direction.y)
     }
     if (ev.keyCode == 32) {
         ev.preventDefault();
@@ -113,7 +140,7 @@ onWindowResize = function(event) {
 window.addEventListener('resize', onWindowResize, false);
 
 startFracVaders = function() {
-    $('#logo').hide();
+    generateVx();
     window.game.scene.remove(window.game.scene.__objects[1]);
     initPostProcess();
     canvasCallback = $.Callbacks();
@@ -162,7 +189,7 @@ startFracVaders = function() {
         player.playerSkin.leftArm.visible = false;
         player.playerSkin.leftLeg.visible = false;
         player.playerSkin.head.visible = false;
-        player.yaw.position.set(0, 2, 0);
+        player.yaw.position.set(0, 10, 0);
         var myMat = new game.THREE.MeshLambertMaterial({
             color: 0x800830,
             ambient: 0x800830
@@ -180,76 +207,37 @@ startFracVaders = function() {
         player.avatar.name = "omegavader";
         //player.friction = new game.THREE.Vector3(1, 1, 10);
         //player.move([0,0,-0.000005]);
+
+
+        // physicalObject is most likely going to be your [voxel-player](https://github.com/substack/voxel-player)
+        // e.g.:
+
         player.possess();
-        /*player.on('collide', function(creature) {
-            console.log('collide2');
-        });*/
+
         player.avatar.add(window.game.starTunnel.mesh);
         player.currentCamera = player.avatar.cameraInside.children[1];
-        window.game.starTunnel.mesh.position.z = -90;
-        window.game.starTunnel.mesh.position.y = 20;
+        game.starTunnel.mesh.position.z = -90;
+        game.starTunnel.mesh.position.y = 20;
 
         $('#loader').hide();
         $('#container').fadeIn("fast");
-        $('#cockpit').css('bottom', '0px');
+        /* $('#cockpit').css('bottom', '0px');
         $('#cockpit').fadeIn("fast");
-        $('#phaser').remove();
+        $('#phaser').remove();*/
 
-        // createCreaures();
+
         vv = require('voxel-vader');
         _vv = vv(game)(game);
         _vv.message = 'c1';
         _vv.position.y = 10;
         _vv.position.x = 0;
-        _vv.position.z = -80;
-
-        _vv.on('notice', function(player) {
-            // console.log('hit');
-            _vv.lookAt(player);
-            _vv.move(((player.position.x - _vv.position.x) * 0.001), ((player.position.y - _vv.position.y) * 0.001), ((player.position.z - _vv.position.z) * 0.001));
-        });
-
-        _vv.on('collide', function(player) {
-            console.log(this.message);
-            //console.log('collide1');
-        });
-        _vv.notice(player, {
-            radius: 500
-        });
-
-        setInterval(function() {
-            if (_vv.noticed) return;
-            //creature.rotation.y += Math.random() * Math.PI / 2 - Math.PI / 4;
-            //creature.move(0, 0, 0.5 * Math.random());
-        }, 1000);
+        _vv.position.z = -50;
         _liveBogeys.push(_vv);
-
-
         _vv2 = vv(game)(game);
         _vv2.message = 'c2';
         _vv2.position.y = 10;
         _vv2.position.x = 0;
-        _vv2.position.z = -80;
-
-        _vv2.on('notice', function(player) {
-            // console.log('hit');
-            _vv2.lookAt(player);
-            _vv2.move(((player.position.x - _vv.position.x) * 0.001), ((player.position.y - _vv.position.y) * 0.001), ((player.position.z - _vv.position.z) * 0.001));
-        });
-
-        _vv2.on('collide', function(player) {
-            // console.log(this.message);
-            //console.log('collide1');
-        });
-        _vv2.notice(player, {
-            radius: 500
-        });
-
-        setInterval(function() {
-            if (_vv2.noticed) return;
-            //creature.rotation.y += Math.random() * Math.PI / 2 - Math.PI / 4;
-            //creature.move(0, 0, 0.5 * Math.random());
-        }, 1000);
+        _vv2.position.z = -450;
         _liveBogeys.push(_vv2);
 
     }
@@ -269,16 +257,7 @@ function onDocumentMouseMove(e) {
 startFracIntro = function() {
     player = null;
     $('#loader').hide();
-
-    $('#container').fadeIn("fast", function() {
-        var l = (($('body').width() / 2) - ($('#logo').width() / 2));
-        var t = (($('body').height() / 2) + ($('#logo').height() / 2));
-        $('#logo').css({
-            'left': l + 'px',
-            'top': t + 'px'
-        });
-        $('#logo').fadeIn('fast');
-    });
+    $('#container').fadeIn("fast");
     window.game.scene.fog.color = {
         r: 0,
         g: 0,
@@ -326,8 +305,8 @@ startFracIntro = function() {
         }
     }
     uniformsTunnelFS.iChannel0.value.wrapS = uniformsTunnelFS.iChannel0.value.wrapT = window.game.THREE.RepeatWrapping;
-    uniformsTunnelFS.resolution.value.x = $('#container').width();
-    uniformsTunnelFS.resolution.value.y = $('#container').height();
+    uniformsTunnelFS.resolution.value.x = _width;
+    uniformsTunnelFS.resolution.value.y = _height;
     tunnelMat = new window.game.THREE.ShaderMaterial({
         uniforms: uniformsTunnelFS,
         vertexShader: tunnelFVVS,
@@ -339,26 +318,34 @@ startFracIntro = function() {
     window.game.scene.add(mesh);
     window.game.camera.position.z = 1;
     window.game.camera.useQuaternion = true;
+    window.game.camera.far = 2000;
     game.on('tick', function(delta) {
         uniformsTunnelFS.time.value += 0.01;
         if (typeof _bullet != undefined) {
             var speed = delta * _bullet.speed;
             for (var i = _bullet.live.length - 1; i >= 0; i--) {
-                var b = _bullet.live[i].mesh,
-                    p = b.position,
-                    d = b.ray.direction;
-                var hit = false;
-                if (!hit) {
+                try {
+                    var b = _bullet.live[i].mesh;
+                    var gcDist = b.position.distanceTo(game.camera.position);
+                    if (game.camera.far < gcDist) {
+                        _bullet.live.splice(b.id, 1);
+                        b.Destroy();
+                        game.scene.remove(b);
+                    }
+                    var p = b.position,
+                        d = b.ray.direction;
                     b.translateX(speed * d.x);
                     b.translateY(speed * d.y);
                     b.translateZ(speed * d.z);
+                } catch (e) {
+                    break;
                 }
             }
         }
 
     });
 }
-},{"./scripts/shaders.js":68,"Shader-Particles":2,"voxel-bullet":3,"voxel-critter":7,"voxel-engine":10,"voxel-player":51,"voxel-pp":53,"voxel-vader":65}],2:[function(require,module,exports){
+},{"./scripts/shaders.js":70,"Shader-Particles":2,"voxel-bullet":3,"voxel-critter":7,"voxel-engine":10,"voxel-perlin-terrain":51,"voxel-player":53,"voxel-pp":55,"voxel-vader":67}],2:[function(require,module,exports){
 module.exports = function(game) {
     var THREE = game.THREE;
 
@@ -1579,7 +1566,7 @@ Bullet.prototype.BuildBullets = function(opts, camera) {
     if (opts.rootPosition == undefined) opts.rootPosition = new game.THREE.Vector3(1, 1, 1);
     if (opts.bulletPosition == undefined) opts.bulletPosition = [new game.THREE.Vector3(1, 1, 1)];
     if (opts.radius === undefined) opts.radius = 50;
-    if (opts.collisionRadius === undefined) opts.collisionRadius = 20;
+    if (opts.collisionRadius === undefined) opts.collisionRadius = 10;
     if (opts.interval === undefined) opts.interval = 1000;
     if (opts.owner == undefined) this.owner = this.type[1];
     for (var i = 0; i < opts.count; i++) {
@@ -1604,6 +1591,7 @@ Bullet.prototype.BuildBullets = function(opts, camera) {
         var _bT = {};
         _bT.collisionRadius = opts.collisionRadius;
         _bT.mesh = this.local[i];
+        _bT.id = this.live.length;
         _bT._event = new events.EventEmitter();
         _bT._events = _bT._event._events;
         _bT.game = game;
@@ -1615,19 +1603,30 @@ Bullet.prototype.BuildBullets = function(opts, camera) {
         };
         _bT.item = game.addItem(_bT);
         _bT.notice = function(target, opts) {
-            var sefl = this;
-            if (!opts) opts = {};
-            if (opts.radius === undefined) opts.radius = 200;
-            if (opts.collisionRadius === undefined) opts.collisionRadius = 500;
-            if (opts.interval === undefined) opts.interval = 50;
-            var pos = target.position || target;
-            return setInterval(function() {
-                var dist = sefl.mesh.position.distanceTo(pos);
+            try {
+                var sefl = this;
+                if (!opts) opts = {};
+                if (opts.radius === undefined) opts.radius = 200;
+                if (opts.collisionRadius === undefined) opts.collisionRadius = 500;
+                if (opts.interval === undefined) opts.interval = 50;
+                var pos = target.position || target;
+                return setInterval(function() {
+                    try {
+                        var dist = sefl.mesh.position.distanceTo(pos);
+                        if (dist < sefl.collisionRadius) {
+                            sefl._event.emit('collide', target);
+                        }
+                    } catch (e) {}
 
-                if (dist < sefl.collisionRadius) {
-                    sefl._event.emit('collide', target);
-                }
-            }, opts.interval);
+                }, opts.interval);
+            } catch (e) {}
+
+        }
+
+        _bT.Destory = function() {
+            _bT._events = null;
+            _bT._event = null;
+            delete _bT;
         }
 
         if (opts.target != undefined) {
@@ -1637,8 +1636,14 @@ Bullet.prototype.BuildBullets = function(opts, camera) {
                     radius: 500
                 });
                 _bT._event.on('collide', function(cTarget) {
-                    console.log('collideX')
-                    game.scene.remove(cTarget.item.avatar);
+                    try {
+                        console.log('collideX');
+                        cTarget.Explode();
+                        game.scene.remove(_bT);
+                        delete cTarget;
+                        delete _bT;
+                    } catch (e) {}
+
                 });
             }
         }
@@ -1647,10 +1652,11 @@ Bullet.prototype.BuildBullets = function(opts, camera) {
     }
 
 
-    return this.local;
+
+    return this.live;
 
 }
-},{"events":76,"inherits":4}],4:[function(require,module,exports){
+},{"events":78,"inherits":4}],4:[function(require,module,exports){
 if (typeof Object.create === 'function') {
   // implementation from standard node.js 'util' module
   module.exports = function inherits(ctor, superCtor) {
@@ -1768,7 +1774,7 @@ Creature.prototype.notice = function(target, opts) {
         }
     }, opts.interval);
 };
-},{"events":76,"inherits":6}],6:[function(require,module,exports){
+},{"events":78,"inherits":6}],6:[function(require,module,exports){
 module.exports = inherits
 
 function inherits (c, p, proto) {
@@ -2101,256 +2107,271 @@ var tic = require('tic')()
 
 module.exports = Game
 
-function Game(opts) {
-  if (!(this instanceof Game)) return new Game(opts)
-  var self = this
-  if (!opts) opts = {}
-  if (process.browser && this.notCapable(opts)) return
-  
-  // is this a client or a headless server
-  this.isClient = Boolean( (typeof opts.isClient !== 'undefined') ? opts.isClient : process.browser )
+    function Game(opts) {
+        if (!(this instanceof Game)) return new Game(opts)
+        var self = this
+        if (!opts) opts = {}
+        if (process.browser && this.notCapable(opts)) return
 
-  if (!('generateChunks' in opts)) opts.generateChunks = true
-  this.generateChunks = opts.generateChunks
-  this.setConfigurablePositions(opts)
-  this.configureChunkLoading(opts)
-  this.setDimensions(opts)
-  this.THREE = THREE
-  this.vector = vector
-  this.glMatrix = glMatrix
-  this.arrayType = opts.arrayType || Uint8Array
-  this.cubeSize = 1 // backwards compat
-  this.chunkSize = opts.chunkSize || 32
-  
-  // chunkDistance and removeDistance should not be set to the same thing
-  // as it causes lag when you go back and forth on a chunk boundary
-  this.chunkDistance = opts.chunkDistance || 2
-  this.removeDistance = opts.removeDistance || this.chunkDistance + 1
-  
-  this.skyColor = opts.skyColor || 0xBFD1E5
-  this.playerHeight = opts.playerHeight || 1.62
-  this.meshType = opts.meshType || 'surfaceMesh'
-  this.mesher = opts.mesher || voxel.meshers.culled
-  this.materialType = opts.materialType || THREE.MeshLambertMaterial
-  this.materialParams = opts.materialParams || {}
-  this.items = []
-  this.voxels = voxel(this)
-  this.scene = new THREE.Scene()
-  this.view = opts.view || new voxelView(THREE, { width: this.width, height: this.height, skyColor: this.skyColor })
-  this.view.bindToScene(this.scene)
-  this.camera = this.view.getCamera()
-  if (!opts.lightsDisabled) this.addLights(this.scene)
-  
-  this.fogScale = opts.fogScale || 32
-  if (!opts.fogDisabled) this.scene.fog = new THREE.Fog( this.skyColor, 0.00025, this.worldWidth() * this.fogScale )
-  
-  this.collideVoxels = collisions(
-    this.getBlock.bind(this),
-    1,
-    [Infinity, Infinity, Infinity],
-    [-Infinity, -Infinity, -Infinity]
-  )
-  
-  this.timer = this.initializeTimer((opts.tickFPS || 16))
-  this.paused = false
+        // is this a client or a headless server
+        this.isClient = Boolean((typeof opts.isClient !== 'undefined') ? opts.isClient : process.browser)
 
-  this.spatial = new SpatialEventEmitter
-  this.region = regionChange(this.spatial, aabb([0, 0, 0], [1, 1, 1]), this.chunkSize)
-  this.voxelRegion = regionChange(this.spatial, 1)
-  this.chunkRegion = regionChange(this.spatial, this.chunkSize)
-  this.asyncChunkGeneration = false
+        if (!('generateChunks' in opts)) opts.generateChunks = true
+        this.generateChunks = opts.generateChunks
+        this.setConfigurablePositions(opts)
+        this.configureChunkLoading(opts)
+        this.setDimensions(opts)
+        this.THREE = THREE
+        this.vector = vector
+        this.glMatrix = glMatrix
+        this.arrayType = opts.arrayType || Uint8Array
+        this.cubeSize = 1 // backwards compat
+        this.chunkSize = opts.chunkSize || 32
 
-  // contains chunks that has had an update this tick. Will be generated right before redrawing the frame
-  this.chunksNeedsUpdate = {}
-  // contains new chunks yet to be generated. Handled by game.loadPendingChunks
-  this.pendingChunks = []
+        // chunkDistance and removeDistance should not be set to the same thing
+        // as it causes lag when you go back and forth on a chunk boundary
+        this.chunkDistance = opts.chunkDistance || 2
+        this.removeDistance = opts.removeDistance || this.chunkDistance + 1
 
-  this.materials = texture({
-    game: this,
-    texturePath: opts.texturePath || './textures/',
-    materialType: opts.materialType || THREE.MeshLambertMaterial,
-    materialParams: opts.materialParams || {},
-    materialFlatColor: opts.materialFlatColor === true
-  })
+        this.skyColor = opts.skyColor || 0xBFD1E5
+        this.playerHeight = opts.playerHeight || 1.62
+        this.meshType = opts.meshType || 'surfaceMesh'
+        this.mesher = opts.mesher || voxel.meshers.culled
+        this.materialType = opts.materialType || THREE.MeshLambertMaterial
+        this.materialParams = opts.materialParams || {}
+        this.items = []
+        this.voxels = voxel(this)
+        this.scene = new THREE.Scene()
+        this.view = opts.view || new voxelView(THREE, {
+            width: this.width,
+            height: this.height,
+            skyColor: this.skyColor
+        })
+        this.view.bindToScene(this.scene)
+        this.camera = this.view.getCamera()
+        if (!opts.lightsDisabled) this.addLights(this.scene)
 
-  this.materialNames = opts.materials || [['grass', 'dirt', 'grass_dirt'], 'brick', 'dirt']
-  
-  self.chunkRegion.on('change', function(newChunk) {
-    self.removeFarChunks()
-  })
+        this.fogScale = opts.fogScale || 32
+        if (!opts.fogDisabled) this.scene.fog = new THREE.Fog(this.skyColor, 0.00025, this.worldWidth() * this.fogScale)
 
-  if (this.isClient) this.materials.load(this.materialNames)
+        this.collideVoxels = collisions(
+            this.getBlock.bind(this),
+            1, [Infinity, Infinity, Infinity], [-Infinity, -Infinity, -Infinity]
+        )
 
-  if (this.generateChunks) this.handleChunkGeneration()
+        this.timer = this.initializeTimer((opts.tickFPS || 16))
+        this.paused = false
 
-  // client side only after this point
-  if (!this.isClient) return
-  
-  this.paused = true
-  this.initializeRendering(opts)
- 
-  this.showAllChunks()
+        this.spatial = new SpatialEventEmitter
+        this.region = regionChange(this.spatial, aabb([0, 0, 0], [1, 1, 1]), this.chunkSize)
+        this.voxelRegion = regionChange(this.spatial, 1)
+        this.chunkRegion = regionChange(this.spatial, this.chunkSize)
+        this.asyncChunkGeneration = false
 
-  setTimeout(function() {
-    self.asyncChunkGeneration = 'asyncChunkGeneration' in opts ? opts.asyncChunkGeneration : true
-  }, 2000)
+        // contains chunks that has had an update this tick. Will be generated right before redrawing the frame
+        this.chunksNeedsUpdate = {}
+        // contains new chunks yet to be generated. Handled by game.loadPendingChunks
+        this.pendingChunks = []
 
-  this.initializeControls(opts)
-}
+        this.materials = texture({
+            game: this,
+            texturePath: opts.texturePath || './textures/',
+            materialType: opts.materialType || THREE.MeshLambertMaterial,
+            materialParams: opts.materialParams || {},
+            materialFlatColor: opts.materialFlatColor === true
+        })
+
+        this.materialNames = opts.materials || [
+            ['grass', 'dirt', 'grass_dirt'], 'brick', 'dirt'
+        ]
+
+        self.chunkRegion.on('change', function(newChunk) {
+            self.removeFarChunks()
+        })
+
+        if (this.isClient) this.materials.load(this.materialNames)
+
+        if (this.generateChunks) this.handleChunkGeneration()
+
+        // client side only after this point
+        if (!this.isClient) return
+
+        this.paused = true
+        this.initializeRendering(opts)
+
+        this.showAllChunks()
+
+        setTimeout(function() {
+            self.asyncChunkGeneration = 'asyncChunkGeneration' in opts ? opts.asyncChunkGeneration : true
+        }, 2000)
+
+        this.initializeControls(opts)
+    }
 
 inherits(Game, EventEmitter)
 
 // # External API
 
 Game.prototype.voxelPosition = function(gamePosition) {
-  var _ = Math.floor
-  var p = gamePosition
-  var v = []
-  v[0] = _(p[0])
-  v[1] = _(p[1])
-  v[2] = _(p[2])
-  return v
+    var _ = Math.floor
+    var p = gamePosition
+    var v = []
+    v[0] = _(p[0])
+    v[1] = _(p[1])
+    v[2] = _(p[2])
+    return v
 }
 
 Game.prototype.cameraPosition = function() {
-  return this.view.cameraPosition()
+    return this.view.cameraPosition()
 }
 
 Game.prototype.cameraVector = function() {
-  return this.view.cameraVector()
+    return this.view.cameraVector()
 }
 
 Game.prototype.makePhysical = function(target, envelope, blocksCreation) {
-  var vel = this.terminalVelocity
-  envelope = envelope || [2/3, 1.5, 2/3]
-  var obj = physical(target, this.potentialCollisionSet(), envelope, {x: vel[0], y: vel[1], z: vel[2]})
-  obj.blocksCreation = !!blocksCreation
-  return obj
+    var vel = this.terminalVelocity
+    envelope = envelope || [2 / 3, 1.5, 2 / 3]
+    var obj = physical(target, this.potentialCollisionSet(), envelope, {
+        x: vel[0],
+        y: vel[1],
+        z: vel[2]
+    })
+    obj.blocksCreation = !! blocksCreation
+    return obj
 }
 
 Game.prototype.addItem = function(item) {
-  if (!item.tick) {
-    var newItem = physical(
-      item.mesh,
-      this.potentialCollisionSet(),
-      [item.size, item.size, item.size]
-    )
-    
-    if (item.velocity) {
-      newItem.velocity.copy(item.velocity)
-      newItem.subjectTo(this.gravity)
+    if (!item.tick) {
+        var newItem = physical(
+            item.mesh,
+            this.potentialCollisionSet(), [item.size, item.size, item.size]
+        )
+
+        if (item.velocity) {
+            newItem.velocity.copy(item.velocity)
+            newItem.subjectTo(this.gravity)
+        }
+
+        newItem.repr = function() {
+            return 'debris'
+        }
+        newItem.mesh = item.mesh
+        newItem.blocksCreation = item.blocksCreation
+
+        item = newItem
     }
-    
-    newItem.repr = function() { return 'debris' }
-    newItem.mesh = item.mesh
-    newItem.blocksCreation = item.blocksCreation
-    
-    item = newItem
-  }
-  
-  this.items.push(item)
-  if (item.mesh) this.scene.add(item.mesh)
-  return this.items[this.items.length - 1]
+
+    this.items.push(item)
+    if (item.mesh) this.scene.add(item.mesh)
+    return this.items[this.items.length - 1]
 }
 
 Game.prototype.removeItem = function(item) {
-  var ix = this.items.indexOf(item)
-  if (ix < 0) return
-  this.items.splice(ix, 1)
-  if (item.mesh) this.scene.remove(item.mesh)
+    var ix = this.items.indexOf(item)
+    if (ix < 0) return
+    this.items.splice(ix, 1)
+    if (item.mesh) this.scene.remove(item.mesh)
 }
 
 // only intersects voxels, not items (for now)
 Game.prototype.raycast = // backwards compat
 Game.prototype.raycastVoxels = function(start, direction, maxDistance, epilson) {
-  if (!start) return this.raycastVoxels(this.cameraPosition(), this.cameraVector(), 10)
-  
-  var hitNormal = [0, 0, 0]
-  var hitPosition = [0, 0, 0]
-  var cp = start || this.cameraPosition()
-  var cv = direction || this.cameraVector()
-  var hitBlock = ray(this, cp, cv, maxDistance || 10.0, hitPosition, hitNormal, epilson || this.epilson)
-  if (hitBlock <= 0) return false
-  var adjacentPosition = [0, 0, 0]
-  var voxelPosition = this.voxelPosition(hitPosition)
-  vector.add(adjacentPosition, voxelPosition, hitNormal)
-  
-  return {
-    position: hitPosition,
-    voxel: voxelPosition,
-    direction: direction,
-    value: hitBlock,
-    normal: hitNormal,
-    adjacent: adjacentPosition
-  }
+    if (!start) return this.raycastVoxels(this.cameraPosition(), this.cameraVector(), 10)
+
+    var hitNormal = [0, 0, 0]
+    var hitPosition = [0, 0, 0]
+    var cp = start || this.cameraPosition()
+    var cv = direction || this.cameraVector()
+    var hitBlock = ray(this, cp, cv, maxDistance || 10.0, hitPosition, hitNormal, epilson || this.epilson)
+    if (hitBlock <= 0) return false
+    var adjacentPosition = [0, 0, 0]
+    var voxelPosition = this.voxelPosition(hitPosition)
+    vector.add(adjacentPosition, voxelPosition, hitNormal)
+
+    return {
+        position: hitPosition,
+        voxel: voxelPosition,
+        direction: direction,
+        value: hitBlock,
+        normal: hitNormal,
+        adjacent: adjacentPosition
+    }
 }
 
 Game.prototype.canCreateBlock = function(pos) {
-  pos = this.parseVectorArguments(arguments)
-  var floored = pos.map(function(i) { return Math.floor(i) })
-  var bbox = aabb(floored, [1, 1, 1])
-  
-  for (var i = 0, len = this.items.length; i < len; ++i) {
-    var item = this.items[i]
-    var itemInTheWay = item.blocksCreation && item.aabb && bbox.intersects(item.aabb())
-    if (itemInTheWay) return false
-  }
+    pos = this.parseVectorArguments(arguments)
+    var floored = pos.map(function(i) {
+        return Math.floor(i)
+    })
+    var bbox = aabb(floored, [1, 1, 1])
 
-  return true
+    for (var i = 0, len = this.items.length; i < len; ++i) {
+        var item = this.items[i]
+        var itemInTheWay = item.blocksCreation && item.aabb && bbox.intersects(item.aabb())
+        if (itemInTheWay) return false
+    }
+
+    return true
 }
 
 Game.prototype.createBlock = function(pos, val) {
-  if (typeof val === 'string') val = this.materials.find(val)
-  if (!this.canCreateBlock(pos)) return false
-  this.setBlock(pos, val)
-  return true
+    if (typeof val === 'string') val = this.materials.find(val)
+    if (!this.canCreateBlock(pos)) return false
+    this.setBlock(pos, val)
+    return true
 }
 
 Game.prototype.setBlock = function(pos, val) {
-  if (typeof val === 'string') val = this.materials.find(val)
-  var old = this.voxels.voxelAtPosition(pos, val)
-  var c = this.voxels.chunkAtPosition(pos)
-  var chunk = this.voxels.chunks[c.join('|')]
-  if (!chunk) return// todo - does self.emit('missingChunk', c.join('|')) make sense here?
-  this.addChunkToNextUpdate(chunk)
-  this.spatial.emit('change-block', pos, old, val)
-  this.emit('setBlock', pos, val, old)
+    if (typeof val === 'string') val = this.materials.find(val)
+    var old = this.voxels.voxelAtPosition(pos, val)
+    var c = this.voxels.chunkAtPosition(pos)
+    var chunk = this.voxels.chunks[c.join('|')]
+    if (!chunk) return // todo - does self.emit('missingChunk', c.join('|')) make sense here?
+    this.addChunkToNextUpdate(chunk)
+    this.spatial.emit('change-block', pos, old, val)
+    this.emit('setBlock', pos, val, old)
 }
 
 Game.prototype.getBlock = function(pos) {
-  pos = this.parseVectorArguments(arguments)
-  return this.voxels.voxelAtPosition(pos)
+    pos = this.parseVectorArguments(arguments)
+    return this.voxels.voxelAtPosition(pos)
 }
 
 Game.prototype.blockPosition = function(pos) {
-  pos = this.parseVectorArguments(arguments)
-  var ox = Math.floor(pos[0])
-  var oy = Math.floor(pos[1])
-  var oz = Math.floor(pos[2])
-  return [ox, oy, oz]
+    pos = this.parseVectorArguments(arguments)
+    var ox = Math.floor(pos[0])
+    var oy = Math.floor(pos[1])
+    var oz = Math.floor(pos[2])
+    return [ox, oy, oz]
 }
 
 Game.prototype.blocks = function(low, high, iterator) {
-  var l = low, h = high
-  var d = [ h[0]-l[0], h[1]-l[1], h[2]-l[2] ]
-  if (!iterator) var voxels = new this.arrayType(d[0]*d[1]*d[2])
-  var i = 0
-  for(var z=l[2]; z<h[2]; ++z)
-  for(var y=l[1]; y<h[1]; ++y)
-  for(var x=l[0]; x<h[0]; ++x, ++i) {
-    if (iterator) iterator(x, y, z, i)
-    else voxels[i] = this.voxels.voxelAtPosition([x, y, z])
-  }
-  if (!iterator) return {voxels: voxels, dims: d}
+    var l = low,
+        h = high
+    var d = [h[0] - l[0], h[1] - l[1], h[2] - l[2]]
+    if (!iterator) var voxels = new this.arrayType(d[0] * d[1] * d[2])
+    var i = 0
+    for (var z = l[2]; z < h[2]; ++z)
+        for (var y = l[1]; y < h[1]; ++y)
+            for (var x = l[0]; x < h[0]; ++x, ++i) {
+                if (iterator) iterator(x, y, z, i)
+                else voxels[i] = this.voxels.voxelAtPosition([x, y, z])
+            }
+    if (!iterator) return {
+        voxels: voxels,
+        dims: d
+    }
 }
 
 // backwards compat
 Game.prototype.createAdjacent = function(hit, val) {
-  this.createBlock(hit.adjacent, val)
+    this.createBlock(hit.adjacent, val)
 }
 
-Game.prototype.appendTo = function (element) {
-  this.view.appendTo(element)
+Game.prototype.appendTo = function(element) {
+    this.view.appendTo(element)
 }
 
 // # Defaults/options parsing
@@ -2361,92 +2382,94 @@ Game.prototype.epilson = 1e-8
 Game.prototype.terminalVelocity = [0.9, 0.1, 0.9]
 
 Game.prototype.defaultButtons = {
-  'W': 'forward'
-, 'A': 'left'
-, 'S': 'backward'
-, 'D': 'right'
-, '<up>': 'forward'
-, '<left>': 'left'
-, '<down>': 'backward'
-, '<right>': 'right'
-, '<mouse 1>': 'fire'
-, '<mouse 3>': 'firealt'
-, '<space>': 'jump'
-, '<shift>': 'crouch'
-, '<control>': 'alt'
+    'W': 'forward',
+    'A': 'left',
+    'S': 'backward',
+    'D': 'right',
+    '<up>': 'forward',
+    '<left>': 'left',
+    '<down>': 'backward',
+    '<right>': 'right',
+    '<mouse 1>': 'fire',
+    '<mouse 3>': 'firealt',
+    '<space>': 'jump',
+    '<shift>': 'crouch',
+    '<control>': 'alt'
 }
 
 // used in methods that have identity function(pos) {}
 Game.prototype.parseVectorArguments = function(args) {
-  if (!args) return false
-  if (args[0] instanceof Array) return args[0]
-  return [args[0], args[1], args[2]]
+    if (!args) return false
+    if (args[0] instanceof Array) return args[0]
+    return [args[0], args[1], args[2]]
 }
 
 Game.prototype.setConfigurablePositions = function(opts) {
-  var sp = opts.startingPosition
-  this.startingPosition = sp || [35, 1024, 35]
-  var wo = opts.worldOrigin
-  this.worldOrigin = wo || [0, 0, 0]
+    var sp = opts.startingPosition
+    this.startingPosition = sp || [35, 1024, 35]
+    var wo = opts.worldOrigin
+    this.worldOrigin = wo || [0, 0, 0]
 }
 
 Game.prototype.setDimensions = function(opts) {
-  if (opts.container) this.container = opts.container
-  if (opts.container && opts.container.clientHeight) {
-    this.height = opts.container.clientHeight
-  } else {
-    this.height = typeof window === "undefined" ? 1 : window.innerHeight
-  }
-  if (opts.container && opts.container.clientWidth) {
-    this.width = opts.container.clientWidth
-  } else {
-    this.width = typeof window === "undefined" ? 1 : window.innerWidth
-  }
+    if (opts.container) this.container = opts.container
+    if (opts.container && opts.container.clientHeight) {
+        this.height = opts.container.clientHeight
+    } else {
+        this.height = typeof window === "undefined" ? 1 : window.innerHeight
+    }
+    if (opts.container && opts.container.clientWidth) {
+        this.width = opts.container.clientWidth
+    } else {
+        this.width = typeof window === "undefined" ? 1 : window.innerWidth
+    }
 }
 
 Game.prototype.notCapable = function(opts) {
-  var self = this
-  if( !Detector().webgl ) {
-    this.view = {
-      appendTo: function(el) {
-        el.appendChild(self.notCapableMessage())
-      }
+    var self = this
+    if (!Detector().webgl) {
+        this.view = {
+            appendTo: function(el) {
+                el.appendChild(self.notCapableMessage())
+            }
+        }
+        return true
     }
-    return true
-  }
-  return false
+    return false
 }
 
 Game.prototype.notCapableMessage = function() {
-  var wrapper = document.createElement('div')
-  wrapper.className = "errorMessage"
-  var a = document.createElement('a')
-  a.title = "You need WebGL and Pointer Lock (Chrome 23/Firefox 14) to play this game. Click here for more information."
-  a.innerHTML = a.title
-  a.href = "http://get.webgl.org"
-  wrapper.appendChild(a)
-  return wrapper
+    var wrapper = document.createElement('div')
+    wrapper.className = "errorMessage"
+    var a = document.createElement('a')
+    a.title = "You need WebGL and Pointer Lock (Chrome 23/Firefox 14) to play this game. Click here for more information."
+    a.innerHTML = a.title
+    a.href = "http://get.webgl.org"
+    wrapper.appendChild(a)
+    return wrapper
 }
 
 Game.prototype.onWindowResize = function() {
-  var width = window.innerWidth
-  var height = window.innerHeight
-  if (this.container) {
-    width = this.container.clientWidth
-    height = this.container.clientHeight
-  }
-  this.view.resizeWindow(width, height)
+    var width = window.innerWidth
+    var height = window.innerHeight
+    if (this.container) {
+        width = this.container.clientWidth
+        height = this.container.clientHeight
+    }
+    this.view.resizeWindow(width, height)
 }
 
 // # Physics/collision related methods
 
 Game.prototype.control = function(target) {
-  this.controlling = target
-  return this.controls.target(target)
+    this.controlling = target
+    return this.controls.target(target)
 }
 
 Game.prototype.potentialCollisionSet = function() {
-  return [{ collide: this.collideTerrain.bind(this) }]
+    return [{
+        collide: this.collideTerrain.bind(this)
+    }]
 }
 
 /**
@@ -2458,214 +2481,221 @@ Game.prototype.potentialCollisionSet = function() {
  */
 
 Game.prototype.playerPosition = function() {
-  var target = this.controls.target()
-  var position = target
-    ? target.avatar.position
-    : this.camera.localToWorld(this.camera.position.clone())
-  return [position.x, position.y, position.z]
+    var target = this.controls.target()
+    var position = target ? target.avatar.position : this.camera.localToWorld(this.camera.position.clone())
+    return [position.x, position.y, position.z]
 }
 
 Game.prototype.playerAABB = function(position) {
-  var pos = position || this.playerPosition()
-  var lower = []
-  var upper = [1/2, this.playerHeight, 1/2]
-  var playerBottom = [1/4, this.playerHeight, 1/4]
-  vector.subtract(lower, pos, playerBottom)
-  var bbox = aabb(lower, upper)
-  return bbox
+    var pos = position || this.playerPosition()
+    var lower = []
+    var upper = [1 / 2, this.playerHeight, 1 / 2]
+    var playerBottom = [1 / 4, this.playerHeight, 1 / 4]
+    vector.subtract(lower, pos, playerBottom)
+    var bbox = aabb(lower, upper)
+    return bbox
 }
 
 Game.prototype.collideTerrain = function(other, bbox, vec, resting) {
-  var self = this
-  var axes = ['x', 'y', 'z']
-  var vec3 = [vec.x, vec.y, vec.z]
-  this.collideVoxels(bbox, vec3, function hit(axis, tile, coords, dir, edge) {
-    if (!tile) return
-    if (Math.abs(vec3[axis]) < Math.abs(edge)) return
-    vec3[axis] = vec[axes[axis]] = edge
-    other.acceleration[axes[axis]] = 0
-    resting[axes[axis]] = dir
-    other.friction[axes[(axis + 1) % 3]] = other.friction[axes[(axis + 2) % 3]] = axis === 1 ? self.friction  : 1
-    return true
-  })
+    var self = this
+    var axes = ['x', 'y', 'z']
+    var vec3 = [vec.x, vec.y, vec.z]
+    this.collideVoxels(bbox, vec3, function hit(axis, tile, coords, dir, edge) {
+        if (!tile) return
+        if (Math.abs(vec3[axis]) < Math.abs(edge)) return
+        vec3[axis] = vec[axes[axis]] = edge
+        other.acceleration[axes[axis]] = 0
+        resting[axes[axis]] = dir
+        other.friction[axes[(axis + 1) % 3]] = other.friction[axes[(axis + 2) % 3]] = axis === 1 ? self.friction : 1
+        return true
+    })
 }
 
 // # Three.js specific methods
 
 Game.prototype.addStats = function() {
-  stats = new Stats()
-  stats.domElement.style.position  = 'absolute'
-  stats.domElement.style.bottom  = '0px'
-  document.body.appendChild( stats.domElement )
+    stats = new Stats()
+    stats.domElement.style.position = 'absolute'
+    stats.domElement.style.bottom = '0px'
+    document.body.appendChild(stats.domElement)
 }
 
 Game.prototype.addLights = function(scene) {
-  var ambientLight, directionalLight
-  ambientLight = new THREE.AmbientLight(0xcccccc)
-  scene.add(ambientLight)
-  var light	= new THREE.DirectionalLight( 0xffffff , 1)
-  light.position.set( 1, 1, 0.5 ).normalize()
-  scene.add( light )
+    var ambientLight, directionalLight
+        ambientLight = new THREE.AmbientLight(0xcccccc)
+        scene.add(ambientLight)
+        var light = new THREE.DirectionalLight(0xffffff, 1)
+    light.position.set(1, 1, 0.5).normalize()
+    scene.add(light)
 }
 
 // # Chunk related methods
 
 Game.prototype.configureChunkLoading = function(opts) {
-  var self = this
-  if (!opts.generateChunks) return
-  if (!opts.generate) {
-    this.generate = function(x,y,z) {
-      return x*x+y*y+z*z <= 15*15 ? 1 : 0 // sphere world
+    var self = this
+    if (!opts.generateChunks) return
+    if (!opts.generate) {
+        this.generate = function(x, y, z) {
+            return x * x + y * y + z * z <= 15 * 15 ? 1 : 0 // sphere world
+        }
+    } else {
+        this.generate = opts.generate
     }
-  } else {
-    this.generate = opts.generate
-  }
-  if (opts.generateVoxelChunk) {
-    this.generateVoxelChunk = opts.generateVoxelChunk
-  } else {
-    this.generateVoxelChunk = function(low, high) {
-      return voxel.generate(low, high, self.generate, self)
+    if (opts.generateVoxelChunk) {
+        this.generateVoxelChunk = opts.generateVoxelChunk
+    } else {
+        this.generateVoxelChunk = function(low, high) {
+            return voxel.generate(low, high, self.generate, self)
+        }
     }
-  }
 }
 
 Game.prototype.worldWidth = function() {
-  return this.chunkSize * 2 * this.chunkDistance
+    return this.chunkSize * 2 * this.chunkDistance
 }
 
 Game.prototype.chunkToWorld = function(pos) {
-  return [
-    pos[0] * this.chunkSize,
-    pos[1] * this.chunkSize,
-    pos[2] * this.chunkSize
-  ]
+    return [
+        pos[0] * this.chunkSize,
+        pos[1] * this.chunkSize,
+        pos[2] * this.chunkSize
+    ]
 }
 
 Game.prototype.removeFarChunks = function(playerPosition) {
-  var self = this
-  playerPosition = playerPosition || this.playerPosition()
-  var nearbyChunks = this.voxels.nearbyChunks(playerPosition, this.removeDistance).map(function(chunkPos) {
-    return chunkPos.join('|')
-  })
-  Object.keys(self.voxels.chunks).map(function(chunkIndex) {
-    if (nearbyChunks.indexOf(chunkIndex) > -1) return
-    var chunk = self.voxels.chunks[chunkIndex]
-    var mesh = self.voxels.meshes[chunkIndex]
-    var pendingIndex = self.pendingChunks.indexOf(chunkIndex)
-    if (pendingIndex !== -1) self.pendingChunks.splice(pendingIndex, 1)
-    if (!chunk) return
-    var chunkPosition = chunk.position
-    if (mesh) {
-      if (mesh.surfaceMesh) {
-        self.scene.remove(mesh.surfaceMesh)
-        mesh.surfaceMesh.geometry.dispose()
-      }
-      if (mesh.wireMesh) {
-        mesh.wireMesh.geometry.dispose()
-        self.scene.remove(mesh.wireMesh)
-      }
-      delete mesh.data
-      delete mesh.geometry
-      delete mesh.meshed
-      delete mesh.surfaceMesh
-      delete mesh.wireMesh
-    }
-    delete self.voxels.chunks[chunkIndex]
-    self.emit('removeChunk', chunkPosition)
-  })
-  self.voxels.requestMissingChunks(playerPosition)
+    var self = this
+    playerPosition = playerPosition || this.playerPosition()
+    var nearbyChunks = this.voxels.nearbyChunks(playerPosition, this.removeDistance).map(function(chunkPos) {
+        return chunkPos.join('|')
+    })
+    Object.keys(self.voxels.chunks).map(function(chunkIndex) {
+        if (nearbyChunks.indexOf(chunkIndex) > -1) return
+        var chunk = self.voxels.chunks[chunkIndex]
+        var mesh = self.voxels.meshes[chunkIndex]
+        var pendingIndex = self.pendingChunks.indexOf(chunkIndex)
+        if (pendingIndex !== -1) self.pendingChunks.splice(pendingIndex, 1)
+        if (!chunk) return
+        var chunkPosition = chunk.position
+        if (mesh) {
+            if (mesh.surfaceMesh) {
+                self.scene.remove(mesh.surfaceMesh)
+                mesh.surfaceMesh.geometry.dispose()
+            }
+            if (mesh.wireMesh) {
+                mesh.wireMesh.geometry.dispose()
+                self.scene.remove(mesh.wireMesh)
+            }
+            delete mesh.data
+            delete mesh.geometry
+            delete mesh.meshed
+            delete mesh.surfaceMesh
+            delete mesh.wireMesh
+        }
+        delete self.voxels.chunks[chunkIndex]
+        self.emit('removeChunk', chunkPosition)
+    })
+    self.voxels.requestMissingChunks(playerPosition)
 }
 
 Game.prototype.addChunkToNextUpdate = function(chunk) {
-  this.chunksNeedsUpdate[chunk.position.join('|')] = chunk
+    this.chunksNeedsUpdate[chunk.position.join('|')] = chunk
 }
 
 Game.prototype.updateDirtyChunks = function() {
-  var self = this
-  Object.keys(this.chunksNeedsUpdate).forEach(function showChunkAtIndex(chunkIndex) {
-    var chunk = self.chunksNeedsUpdate[chunkIndex]
-    self.emit('dirtyChunkUpdate', chunk)
-    self.showChunk(chunk)
-  })
-  this.chunksNeedsUpdate = {}
+    var self = this
+    Object.keys(this.chunksNeedsUpdate).forEach(function showChunkAtIndex(chunkIndex) {
+        var chunk = self.chunksNeedsUpdate[chunkIndex]
+        self.emit('dirtyChunkUpdate', chunk)
+        self.showChunk(chunk)
+    })
+    this.chunksNeedsUpdate = {}
 }
 
 Game.prototype.loadPendingChunks = function(count) {
-  var pendingChunks = this.pendingChunks
+    var pendingChunks = this.pendingChunks
 
-  if (!this.asyncChunkGeneration) {
-    count = pendingChunks.length
-  } else {
-    count = count || (pendingChunks.length * 0.1)
-    count = Math.max(1, Math.min(count, pendingChunks.length))
-  }
+    if (!this.asyncChunkGeneration) {
+        count = pendingChunks.length
+    } else {
+        count = count || (pendingChunks.length * 0.1)
+        count = Math.max(1, Math.min(count, pendingChunks.length))
+    }
 
-  for (var i = 0; i < count; i += 1) {
-    var chunkPos = pendingChunks[i].split('|')
-    var chunk = this.voxels.generateChunk(chunkPos[0]|0, chunkPos[1]|0, chunkPos[2]|0)
+    for (var i = 0; i < count; i += 1) {
+        var chunkPos = pendingChunks[i].split('|')
+        var chunk = this.voxels.generateChunk(chunkPos[0] | 0, chunkPos[1] | 0, chunkPos[2] | 0)
 
-    if (this.isClient) this.showChunk(chunk)
-  }
+        if (this.isClient) this.showChunk(chunk)
+    }
 
-  if (count) pendingChunks.splice(0, count)
+    if (count) pendingChunks.splice(0, count)
 }
 
 Game.prototype.getChunkAtPosition = function(pos) {
-  var chunkID = this.voxels.chunkAtPosition(pos).join('|')
-  var chunk = this.voxels.chunks[chunkID]
-  return chunk
+    var chunkID = this.voxels.chunkAtPosition(pos).join('|')
+    var chunk = this.voxels.chunks[chunkID]
+    return chunk
 }
 
 Game.prototype.showAllChunks = function() {
-  for (var chunkIndex in this.voxels.chunks) {
-    this.showChunk(this.voxels.chunks[chunkIndex])
-  }
+    for (var chunkIndex in this.voxels.chunks) {
+        this.showChunk(this.voxels.chunks[chunkIndex])
+    }
 }
 
 Game.prototype.showChunk = function(chunk) {
-  var chunkIndex = chunk.position.join('|')
-  var bounds = this.voxels.getBounds.apply(this.voxels, chunk.position)
-  var scale = new THREE.Vector3(1, 1, 1)
-  var mesh = voxelMesh(chunk, this.mesher, scale, this.THREE)
-  this.voxels.chunks[chunkIndex] = chunk
-  if (this.voxels.meshes[chunkIndex]) {
-    if (this.voxels.meshes[chunkIndex].surfaceMesh) this.scene.remove(this.voxels.meshes[chunkIndex].surfaceMesh)
-    if (this.voxels.meshes[chunkIndex].wireMesh) this.scene.remove(this.voxels.meshes[chunkIndex].wireMesh)
-  }
-  this.voxels.meshes[chunkIndex] = mesh
-  if (this.isClient) {
-    if (this.meshType === 'wireMesh') mesh.createWireMesh()
-    else mesh.createSurfaceMesh(this.materials.material)
-    this.materials.paint(mesh)
-  }
-  mesh.setPosition(bounds[0][0], bounds[0][1], bounds[0][2])
-  mesh.addToScene(this.scene)
-  this.emit('renderChunk', chunk)
-  return mesh
+    var chunkIndex = chunk.position.join('|')
+    var bounds = this.voxels.getBounds.apply(this.voxels, chunk.position)
+    var scale = new THREE.Vector3(1, 1, 1)
+    var mesh = voxelMesh(chunk, this.mesher, scale, this.THREE)
+    this.voxels.chunks[chunkIndex] = chunk
+    if (this.voxels.meshes[chunkIndex]) {
+        if (this.voxels.meshes[chunkIndex].surfaceMesh) this.scene.remove(this.voxels.meshes[chunkIndex].surfaceMesh)
+        if (this.voxels.meshes[chunkIndex].wireMesh) this.scene.remove(this.voxels.meshes[chunkIndex].wireMesh)
+    }
+    this.voxels.meshes[chunkIndex] = mesh
+    if (this.isClient) {
+        if (this.meshType === 'wireMesh') mesh.createWireMesh()
+        else mesh.createSurfaceMesh(this.materials.material)
+        this.materials.paint(mesh)
+    }
+    mesh.setPosition(bounds[0][0], bounds[0][1], bounds[0][2])
+    mesh.addToScene(this.scene)
+    this.emit('renderChunk', chunk)
+    return mesh
 }
 
 // # Debugging methods
 
 Game.prototype.addMarker = function(position) {
-  var geometry = new THREE.SphereGeometry( 0.1, 10, 10 )
-  var material = new THREE.MeshPhongMaterial( { color: 0xffffff, shading: THREE.FlatShading } )
-  var mesh = new THREE.Mesh( geometry, material )
-  mesh.position.copy(position)
-  this.scene.add(mesh)
+    var geometry = new THREE.SphereGeometry(0.1, 10, 10)
+    var material = new THREE.MeshPhongMaterial({
+        color: 0xffffff,
+        shading: THREE.FlatShading
+    })
+    var mesh = new THREE.Mesh(geometry, material)
+    mesh.position.copy(position)
+    this.scene.add(mesh)
 }
 
 Game.prototype.addAABBMarker = function(aabb, color) {
-  var geometry = new THREE.CubeGeometry(aabb.width(), aabb.height(), aabb.depth())
-  var material = new THREE.MeshBasicMaterial({ color: color || 0xffffff, wireframe: true, transparent: true, opacity: 0.5, side: THREE.DoubleSide })
-  var mesh = new THREE.Mesh(geometry, material)
-  mesh.position.set(aabb.x0() + aabb.width() / 2, aabb.y0() + aabb.height() / 2, aabb.z0() + aabb.depth() / 2)
-  this.scene.add(mesh)
-  return mesh
+    var geometry = new THREE.CubeGeometry(aabb.width(), aabb.height(), aabb.depth())
+    var material = new THREE.MeshBasicMaterial({
+        color: color || 0xffffff,
+        wireframe: true,
+        transparent: true,
+        opacity: 0.5,
+        side: THREE.DoubleSide
+    })
+    var mesh = new THREE.Mesh(geometry, material)
+    mesh.position.set(aabb.x0() + aabb.width() / 2, aabb.y0() + aabb.height() / 2, aabb.z0() + aabb.depth() / 2)
+    this.scene.add(mesh)
+    return mesh
 }
 
 Game.prototype.addVoxelMarker = function(x, y, z, color) {
-  var bbox = aabb([x, y, z], [1, 1, 1])
-  return this.addAABBMarker(bbox, color)
+    var bbox = aabb([x, y, z], [1, 1, 1])
+    return this.addAABBMarker(bbox, color)
 }
 
 Game.prototype.pin = pin
@@ -2673,142 +2703,141 @@ Game.prototype.pin = pin
 // # Misc internal methods
 
 Game.prototype.onControlChange = function(gained, stream) {
-  this.paused = false
+    this.paused = false
 
-  if (!gained && !this.optout) {
-    this.buttons.disable()
-    return
-  }
+    if (!gained && !this.optout) {
+        this.buttons.disable()
+        return
+    }
 
-  this.buttons.enable()
-  stream.pipe(this.controls.createWriteRotationStream())
+    this.buttons.enable()
+    stream.pipe(this.controls.createWriteRotationStream())
 }
 
 Game.prototype.onControlOptOut = function() {
-  this.optout = true
+    this.optout = true
 }
 
 Game.prototype.onFire = function(state) {
-  this.emit('fire', this.controlling, state)
+    this.emit('fire', this.controlling, state)
 }
 
 Game.prototype.setInterval = tic.interval.bind(tic)
 Game.prototype.setTimeout = tic.timeout.bind(tic)
 
 Game.prototype.tick = function(delta) {
-  for(var i = 0, len = this.items.length; i < len; ++i) {
-    this.items[i].tick(delta)
-  }
-  
-  if (this.materials) this.materials.tick(delta)
+    for (var i = 0, len = this.items.length; i < len; ++i) {
+        this.items[i].tick(delta)
+    }
 
-  if (this.pendingChunks.length) this.loadPendingChunks()
-  if (Object.keys(this.chunksNeedsUpdate).length > 0) this.updateDirtyChunks()
-  
-  tic.tick(delta)
+    if (this.materials) this.materials.tick(delta)
 
-  this.emit('tick', delta)
-  
-  if (!this.controls) return
-  var playerPos = this.playerPosition()
-  this.spatial.emit('position', playerPos, playerPos)
+    if (this.pendingChunks.length) this.loadPendingChunks()
+    if (Object.keys(this.chunksNeedsUpdate).length > 0) this.updateDirtyChunks()
+
+    tic.tick(delta)
+
+    this.emit('tick', delta)
+
+    if (!this.controls) return
+    var playerPos = this.playerPosition()
+    this.spatial.emit('position', playerPos, playerPos)
 }
 
 Game.prototype.render = function(delta) {
-  this.view.render(this.scene)
+    this.view.render(this.scene)
 }
 
 Game.prototype.initializeTimer = function(rate) {
-  var self = this
-  var accum = 0
-  var now = 0
-  var last = null
-  var dt = 0
-  var wholeTick
-  
-  self.frameUpdated = true
-  self.interval = setInterval(timer, 0)
-  return self.interval
-  
-  function timer() {
-    if (self.paused) {
-      last = Date.now()
-      accum = 0
-      return
-    }
-    now = Date.now()
-    dt = now - (last || now)
-    last = now
-    accum += dt
-    if (accum < rate) return
-    wholeTick = ((accum / rate)|0)
-    if (wholeTick <= 0) return
-    wholeTick *= rate
-    
-    self.tick(wholeTick)
-    accum -= wholeTick
-    
+    var self = this
+    var accum = 0
+    var now = 0
+    var last = null
+    var dt = 0
+    var wholeTick
+
     self.frameUpdated = true
-  }
+    self.interval = setInterval(timer, 0)
+    return self.interval
+
+        function timer() {
+            if (self.paused) {
+                last = Date.now()
+                accum = 0
+                return
+            }
+            now = Date.now()
+            dt = now - (last || now)
+            last = now
+            accum += dt
+            if (accum < rate) return
+            wholeTick = ((accum / rate) | 0)
+            if (wholeTick <= 0) return
+            wholeTick *= rate
+
+            self.tick(wholeTick)
+            accum -= wholeTick
+
+            self.frameUpdated = true
+        }
 }
 
 Game.prototype.initializeRendering = function(opts) {
-  var self = this
+    var self = this
 
-  if (!opts.statsDisabled) self.addStats()
+    if (!opts.statsDisabled) self.addStats()
 
-  window.addEventListener('resize', self.onWindowResize.bind(self), false)
+    window.addEventListener('resize', self.onWindowResize.bind(self), false)
 
-  requestAnimationFrame(window).on('data', function(dt) {
-    self.emit('prerender', dt)
-    self.render(dt)
-    self.emit('postrender', dt)
-  })
-  if (typeof stats !== 'undefined') {
-    self.on('postrender', function() {
-      stats.update()
+    requestAnimationFrame(window).on('data', function(dt) {
+        self.emit('prerender', dt)
+        self.render(dt)
+        self.emit('postrender', dt)
     })
-  }
+    if (typeof stats !== 'undefined') {
+        self.on('postrender', function() {
+            stats.update()
+        })
+    }
 }
 
 Game.prototype.initializeControls = function(opts) {
-  // player control
-  this.keybindings = opts.keybindings || this.defaultButtons
-  this.buttons = kb(document.body, this.keybindings)
-  this.buttons.disable()
-  this.optout = false
-  this.interact = interact(opts.interactElement || this.view.element, opts.interactMouseDrag)
-  this.interact
-      .on('attain', this.onControlChange.bind(this, true))
-      .on('release', this.onControlChange.bind(this, false))
-      .on('opt-out', this.onControlOptOut.bind(this))
-  this.hookupControls(this.buttons, opts)
+    // player control
+    this.keybindings = opts.keybindings || this.defaultButtons
+    this.buttons = kb(document.body, this.keybindings)
+    this.buttons.disable()
+    this.optout = false
+    this.interact = interact(opts.interactElement || this.view.element, opts.interactMouseDrag)
+    this.interact
+        .on('attain', this.onControlChange.bind(this, true))
+        .on('release', this.onControlChange.bind(this, false))
+        .on('opt-out', this.onControlOptOut.bind(this))
+    this.hookupControls(this.buttons, opts)
 }
 
 Game.prototype.hookupControls = function(buttons, opts) {
-  opts = opts || {}
-  opts.controls = opts.controls || {}
-  opts.controls.onfire = this.onFire.bind(this)
-  this.controls = control(buttons, opts.controls)
-  this.items.push(this.controls)
-  this.controlling = null
+    opts = opts || {}
+    opts.controls = opts.controls || {}
+    opts.controls.onfire = this.onFire.bind(this)
+    this.controls = control(buttons, opts.controls)
+    this.items.push(this.controls)
+    this.controlling = null
 }
 
 Game.prototype.handleChunkGeneration = function() {
-  var self = this
-  this.voxels.on('missingChunk', function(chunkPos) {
-    self.pendingChunks.push(chunkPos.join('|'))
-  })
-  this.voxels.requestMissingChunks(this.worldOrigin)
-  this.loadPendingChunks(this.pendingChunks.length)
+    var self = this
+    this.voxels.on('missingChunk', function(chunkPos) {
+        self.pendingChunks.push(chunkPos.join('|'))
+    })
+    this.voxels.requestMissingChunks(this.worldOrigin)
+    this.loadPendingChunks(this.pendingChunks.length)
 }
 
 // teardown methods
 Game.prototype.destroy = function() {
-  clearInterval(this.timer)
+    clearInterval(this.timer)
 }
-
-},{"./lib/detector":11,"./lib/stats":12,"__browserify_process":85,"aabb-3d":13,"collide-3d-tilemap":14,"events":76,"gl-matrix":15,"inherits":16,"interact":17,"kb-controls":26,"path":77,"pin-it":31,"raf":32,"spatial-events":33,"three":35,"tic":36,"voxel":46,"voxel-control":37,"voxel-mesh":38,"voxel-physical":39,"voxel-raycast":40,"voxel-region-change":41,"voxel-texture":42,"voxel-view":44}],11:[function(require,module,exports){
+},{"./lib/detector":11,"./lib/stats":12,"__browserify_process":87,"aabb-3d":13,"collide-3d-tilemap":14,"events":78,"gl-matrix":15,"inherits":16,"interact":17,"kb-controls":26,"path":79,"pin-it":31,"raf":32,"spatial-events":33,"three":35,"tic":36,"voxel":46,"voxel-control":37,"voxel-mesh":38,"voxel-physical":39,"voxel-raycast":40,"voxel-region-change":41,"voxel-texture":42,"voxel-view":44}],11:[function(require,module,exports){
 /**
  * @author alteredq / http://alteredqualia.com/
  * @author mr.doob / http://mrdoob.com/
@@ -6385,7 +6414,7 @@ function usedrag(el) {
   return ee
 }
 
-},{"drag-stream":18,"events":76,"fullscreen":24,"pointer-lock":25,"stream":78}],18:[function(require,module,exports){
+},{"drag-stream":18,"events":78,"fullscreen":24,"pointer-lock":25,"stream":80}],18:[function(require,module,exports){
 module.exports = dragstream
 
 var Stream = require('stream')
@@ -6453,7 +6482,7 @@ function dragstream(el) {
   }
 }
 
-},{"domnode-dom":19,"stream":78,"through":23}],19:[function(require,module,exports){
+},{"domnode-dom":19,"stream":80,"through":23}],19:[function(require,module,exports){
 module.exports = require('./lib/index')
 
 },{"./lib/index":20}],20:[function(require,module,exports){
@@ -6605,7 +6634,7 @@ function valueFromElement(el) {
   return el.value
 }
 
-},{"stream":78}],22:[function(require,module,exports){
+},{"stream":80}],22:[function(require,module,exports){
 module.exports = DOMStream
 
 var Stream = require('stream').Stream
@@ -6687,7 +6716,7 @@ proto.constructTextPlain = function(data) {
   return [textNode]
 }
 
-},{"stream":78}],23:[function(require,module,exports){
+},{"stream":80}],23:[function(require,module,exports){
 var process=require("__browserify_process");var Stream = require('stream')
 
 // through
@@ -6787,7 +6816,7 @@ function through (write, end) {
 }
 
 
-},{"__browserify_process":85,"stream":78}],24:[function(require,module,exports){
+},{"__browserify_process":87,"stream":80}],24:[function(require,module,exports){
 module.exports = fullscreen
 fullscreen.available = available
 
@@ -6878,7 +6907,7 @@ function shim(el) {
     el.oRequestFullScreen)
 }
 
-},{"events":76}],25:[function(require,module,exports){
+},{"events":78}],25:[function(require,module,exports){
 module.exports = pointer
 
 pointer.available = available
@@ -7042,7 +7071,7 @@ function shim(el) {
     null
 }
 
-},{"events":76,"stream":78}],26:[function(require,module,exports){
+},{"events":78,"stream":80}],26:[function(require,module,exports){
 var ever = require('ever')
   , vkey = require('vkey')
   , max = Math.max
@@ -7251,7 +7280,7 @@ Ever.typeOf = (function () {
     };
 })();;
 
-},{"./init.json":28,"./types.json":29,"events":76}],28:[function(require,module,exports){
+},{"./init.json":28,"./types.json":29,"events":78}],28:[function(require,module,exports){
 module.exports={
   "initEvent" : [
     "type",
@@ -7606,7 +7635,7 @@ function raf(el) {
 raf.polyfill = _raf
 raf.now = function() { return Date.now() }
 
-},{"events":76}],33:[function(require,module,exports){
+},{"events":78}],33:[function(require,module,exports){
 module.exports = SpatialEventEmitter
 
 var slice = [].slice
@@ -44822,7 +44851,7 @@ if (typeof exports !== 'undefined') {
   this['THREE'] = THREE;
 }
 
-},{"__browserify_process":85}],36:[function(require,module,exports){
+},{"__browserify_process":87}],36:[function(require,module,exports){
 /*
  * tic
  * https://github.com/shama/tic
@@ -44874,274 +44903,274 @@ module.exports = control
 
 var Stream = require('stream').Stream
 
-function control(control_state, opts) {
-  return new Control(control_state, opts)
-}
-
-function Control(state, opts) {
-  Stream.call(this)
-
-  opts = opts || {}
-
-  this.state = state
-  this._pitch_target = 
-  this._yaw_target =
-  this._roll_target =
-  this._target = null
-  this.speed = opts.speed || 0.0032
-  this.max_speed = opts.maxSpeed || 0.0112
-  this.jump_max_speed = opts.jumpMaxSpeed || 0.016
-  this.jump_max_timer = opts.jumpTimer || 200
-  this.jump_speed = opts.jumpSpeed || 0.004
-  this.jump_timer = this.jump_timer_max
-  this.jumping = false
-  this.acceleration = opts.accelerationCurve || this.acceleration
-
-  this.fire_rate = opts.fireRate || 0
-  this.needs_discrete_fire = opts.discreteFire || false
-  this.onfire = opts.onfire || this.onfire
-  this.firing = 0
-
-  this.x_rotation_per_ms = opts.rotationXMax || opts.rotationMax || 33
-  this.y_rotation_per_ms = opts.rotationYMax || opts.rotationMax || 33
-  this.z_rotation_per_ms = opts.rotationZMax || opts.rotationMax || 33
-
-  this.x_rotation_clamp = opts.rotationXClamp || Math.PI / 2
-  this.y_rotation_clamp = opts.rotationYClamp || Infinity
-  this.z_rotation_clamp = opts.rotationZClamp || 0
-
-  this.rotation_scale = opts.rotationScale || 0.002
-
-  this.air_control = 'airControl' in opts ? opts.airControl : true
-
-  this.state.x_rotation_accum =
-  this.state.y_rotation_accum = 
-  this.state.z_rotation_accum = 0.0
-
-  this.accel_max_timer = opts.accelTimer || 200
-  this.x_accel_timer = this.accel_max_timer+0
-  this.z_accel_timer = this.accel_max_timer+0
-
-  this.readable =
-  this.writable = true
-
-  this.buffer = []
-  this.paused = false
-}
-
-var cons = Control
-  , proto = cons.prototype = new Stream
-
-proto.constructor = cons
-
-var max = Math.max
-  , min = Math.min
-  , sin = Math.sin
-  , abs = Math.abs
-  , floor = Math.floor
-  , PI = Math.PI
-
-proto.tick = function(dt) {
-  if(!this._target) {
-    return
-  }
-  var state = this.state
-    , target = this._target
-    , speed = this.speed
-    , jump_speed = this.jump_speed
-    , okay_z = abs(target.velocity.z) < this.max_speed
-    , okay_x = abs(target.velocity.x) < this.max_speed
-    , at_rest = target.atRestY()
-
-  if(!this._target) return
-
-  if(state.forward || state.backward) {
-    this.z_accel_timer = max(0, this.z_accel_timer - dt)
-  }
-  if(state.backward) {
-    if(target.velocity.z < this.max_speed)
-      target.velocity.z = max(min(this.max_speed, speed * dt * this.acceleration(this.z_accel_timer, this.accel_max_timer)), target.velocity.z)
-  } else if(state.forward) {
-    if(target.velocity.z > -this.max_speed)
-      target.velocity.z = min(max(-this.max_speed, -speed * dt * this.acceleration(this.z_accel_timer, this.accel_max_timer)), target.velocity.z)
-  } else {
-    this.z_accel_timer = this.accel_max_timer
-
-  }
- 
-
-  if(state.left || state.right) {
-    this.x_accel_timer = max(0, this.x_accel_timer - dt)
-  }
-
-  if(state.right) {
-    if(target.velocity.x < this.max_speed)
-      target.velocity.x = max(min(this.max_speed, speed * dt * this.acceleration(this.x_accel_timer, this.accel_max_timer)), target.velocity.x)
-  } else if(state.left) {
-    if(target.velocity.x > -this.max_speed)
-      target.velocity.x = min(max(-this.max_speed, -speed * dt * this.acceleration(this.x_accel_timer, this.accel_max_timer)), target.velocity.x)
-  } else {
-    this.x_accel_timer = this.accel_max_timer
-  }
-
-  if(state.jump) {
-    if(!this.jumping && !at_rest) {
-      // we're falling, we can't jump
-    } else if(at_rest > 0) {
-      // we hit our head
-      this.jumping = false
-    } else {
-      this.jumping = true
-      if(this.jump_timer > 0) {
-        target.velocity.y = min(target.velocity.y + jump_speed * min(dt, this.jump_timer), this.jump_max_speed)
-      }
-      this.jump_timer = max(this.jump_timer - dt, 0)
+    function control(control_state, opts) {
+        return new Control(control_state, opts)
     }
-  } else {
-    this.jumping = false
-  }
-  this.jump_timer = at_rest < 0 ? this.jump_max_timer : this.jump_timer
 
-  var can_fire = true
+    function Control(state, opts) {
+        Stream.call(this)
 
-  if(state.fire || state.firealt) {
-    if(this.firing && this.needs_discrete_fire) {
-      this.firing += dt
-    } else {
-      if(!this.fire_rate || floor(this.firing / this.fire_rate) !== floor((this.firing + dt) / this.fire_rate)) {
-        this.onfire(state)
-      }
-      this.firing += dt
+        opts = opts || {}
+
+        this.state = state
+        this._pitch_target =
+            this._yaw_target =
+            this._roll_target =
+            this._target = null
+        this.speed = opts.speed || 0.0032
+        this.max_speed = opts.maxSpeed || 0.0112
+        this.jump_max_speed = opts.jumpMaxSpeed || 0.016
+        this.jump_max_timer = opts.jumpTimer || 200
+        this.jump_speed = opts.jumpSpeed || 0.004
+        this.jump_timer = this.jump_timer_max
+        this.jumping = false
+        this.acceleration = opts.accelerationCurve || this.acceleration
+
+        this.fire_rate = opts.fireRate || 0
+        this.needs_discrete_fire = opts.discreteFire || false
+        this.onfire = opts.onfire || this.onfire
+        this.firing = 0
+
+        this.x_rotation_per_ms = opts.rotationXMax || opts.rotationMax || 33
+        this.y_rotation_per_ms = opts.rotationYMax || opts.rotationMax || 33
+        this.z_rotation_per_ms = opts.rotationZMax || opts.rotationMax || 33
+
+        this.x_rotation_clamp = opts.rotationXClamp || Math.PI / 2
+        this.y_rotation_clamp = opts.rotationYClamp || Infinity
+        this.z_rotation_clamp = opts.rotationZClamp || 0
+
+        this.rotation_scale = opts.rotationScale || 0.002
+
+        this.air_control = 'airControl' in opts ? opts.airControl : true
+
+        this.state.x_rotation_accum =
+            this.state.y_rotation_accum =
+            this.state.z_rotation_accum = 0.0
+
+        this.accel_max_timer = opts.accelTimer || 200
+        this.x_accel_timer = this.accel_max_timer + 0
+        this.z_accel_timer = this.accel_max_timer + 0
+
+        this.readable =
+            this.writable = true
+
+        this.buffer = []
+        this.paused = false
     }
-  } else {
-    this.firing = 0
-  }
 
-  var x_rotation = this.state.x_rotation_accum * this.rotation_scale
-    , y_rotation = this.state.y_rotation_accum * this.rotation_scale
-    , z_rotation = this.state.z_rotation_accum * this.rotation_scale
-    , pitch_target = this._pitch_target
-    , yaw_target = this._yaw_target
-    , roll_target = this._roll_target
+var cons = Control,
+    proto = cons.prototype = new Stream
 
-  pitch_target.rotation.x = clamp(pitch_target.rotation.x + clamp(x_rotation, this.x_rotation_per_ms), this.x_rotation_clamp)
-  yaw_target.rotation.y = clamp(yaw_target.rotation.y + clamp(y_rotation, this.y_rotation_per_ms), this.y_rotation_clamp)
-  roll_target.rotation.z = clamp(roll_target.rotation.z + clamp(z_rotation, this.z_rotation_per_ms), this.z_rotation_clamp)
+    proto.constructor = cons
 
-  if(this.listeners('data').length) {
-    this.emitUpdate()
-  }
+var max = Math.max,
+    min = Math.min,
+    sin = Math.sin,
+    abs = Math.abs,
+    floor = Math.floor,
+    PI = Math.PI
 
-  this.state.x_rotation_accum =
-  this.state.y_rotation_accum =
-  this.state.z_rotation_accum = 0
-}
+    proto.tick = function(dt) {
+        if (!this._target) {
+            return
+        }
+        var state = this.state,
+            target = this._target,
+            speed = this.speed,
+            jump_speed = this.jump_speed,
+            okay_z = abs(target.velocity.z) < this.max_speed,
+            okay_x = abs(target.velocity.x) < this.max_speed,
+            at_rest = target.atRestY()
+
+            if (!this._target) return
+
+        if (state.forward || state.backward) {
+            this.z_accel_timer = max(0, this.z_accel_timer - dt)
+        }
+        if (state.backward) {
+            if (target.velocity.z < this.max_speed)
+                target.velocity.z = max(min(this.max_speed, speed * dt * this.acceleration(this.z_accel_timer, this.accel_max_timer)), target.velocity.z)
+        } else if (state.forward) {
+            if (target.velocity.z > -this.max_speed)
+                target.velocity.z = min(max(-this.max_speed, -speed * dt * this.acceleration(this.z_accel_timer, this.accel_max_timer)), target.velocity.z)
+        } else {
+            this.z_accel_timer = this.accel_max_timer
+
+        }
+
+
+        if (state.left || state.right) {
+            this.x_accel_timer = max(0, this.x_accel_timer - dt)
+        }
+
+        if (state.right) {
+            if (target.velocity.x < this.max_speed)
+                target.velocity.x = max(min(this.max_speed, speed * dt * this.acceleration(this.x_accel_timer, this.accel_max_timer)), target.velocity.x)
+        } else if (state.left) {
+            if (target.velocity.x > -this.max_speed)
+                target.velocity.x = min(max(-this.max_speed, -speed * dt * this.acceleration(this.x_accel_timer, this.accel_max_timer)), target.velocity.x)
+        } else {
+            this.x_accel_timer = this.accel_max_timer
+        }
+
+        if (state.jump) {
+            if (!this.jumping && !at_rest) {
+                // we're falling, we can't jump
+            } else if (at_rest > 0) {
+                // we hit our head
+                this.jumping = false
+            } else {
+                this.jumping = true
+                if (this.jump_timer > 0) {
+                    target.velocity.y = min(target.velocity.y + jump_speed * min(dt, this.jump_timer), this.jump_max_speed)
+                }
+                this.jump_timer = max(this.jump_timer - dt, 0)
+            }
+        } else {
+            this.jumping = false
+        }
+        this.jump_timer = at_rest < 0 ? this.jump_max_timer : this.jump_timer
+
+        var can_fire = true
+
+        if (state.fire || state.firealt) {
+            if (this.firing && this.needs_discrete_fire) {
+                this.firing += dt
+            } else {
+                if (!this.fire_rate || floor(this.firing / this.fire_rate) !== floor((this.firing + dt) / this.fire_rate)) {
+                    this.onfire(state)
+                }
+                this.firing += dt
+            }
+        } else {
+            this.firing = 0
+        }
+
+        var x_rotation = this.state.x_rotation_accum * this.rotation_scale,
+            y_rotation = this.state.y_rotation_accum * this.rotation_scale,
+            z_rotation = this.state.z_rotation_accum * this.rotation_scale,
+            pitch_target = this._pitch_target,
+            yaw_target = this._yaw_target,
+            roll_target = this._roll_target
+
+            pitch_target.rotation.x = clamp(pitch_target.rotation.x + clamp(x_rotation, this.x_rotation_per_ms), this.x_rotation_clamp)
+            yaw_target.rotation.y = clamp(yaw_target.rotation.y + clamp(y_rotation, this.y_rotation_per_ms), this.y_rotation_clamp)
+            roll_target.rotation.z = clamp(roll_target.rotation.z + clamp(z_rotation, this.z_rotation_per_ms), this.z_rotation_clamp)
+
+            if (this.listeners('data').length) {
+                this.emitUpdate()
+            }
+
+        this.state.x_rotation_accum =
+            this.state.y_rotation_accum =
+            this.state.z_rotation_accum = 0
+    }
 
 proto.write = function(changes) {
-  for(var key in changes) {
-    this.state[key] = changes[key]
-  }
+    for (var key in changes) {
+        this.state[key] = changes[key]
+    }
 }
 
 proto.end = function(deltas) {
-  if(deltas) {
-    this.write(deltas)
-  }
+    if (deltas) {
+        this.write(deltas)
+    }
 }
 
 proto.createWriteRotationStream = function() {
-  var state = this.state
-    , stream = new Stream
+    var state = this.state,
+        stream = new Stream
 
-  state.x_rotation_accum =
-  state.y_rotation_accum =
-  state.z_rotation_accum = 0
+        state.x_rotation_accum =
+            state.y_rotation_accum =
+            state.z_rotation_accum = 0
 
-  stream.writable = true
-  stream.write = write
-  stream.end = end
+        stream.writable = true
+        stream.write = write
+        stream.end = end
 
-  return stream
+    return stream
 
-  function write(changes) {
-    state.x_rotation_accum -= changes.dy || 0
-    state.y_rotation_accum -= changes.dx || 0
-    state.z_rotation_accum += changes.dz || 0
-  }
-
-  function end(deltas) {
-    if(deltas) {
-      stream.write(deltas)
+    function write(changes) {
+        state.x_rotation_accum -= changes.dy || 0
+        state.y_rotation_accum -= changes.dx || 0
+        state.z_rotation_accum += changes.dz || 0
     }
-  }
+
+    function end(deltas) {
+        if (deltas) {
+            stream.write(deltas)
+        }
+    }
 }
 
 proto.emitUpdate = function() {
-  return this.queue({
-      x_rotation_accum: this.state.x_rotation_accum
-    , y_rotation_accum: this.state.y_rotation_accum
-    , z_rotation_accum: this.state.z_rotation_accum
-    , forward: this.state.forward
-    , backward: this.state.backward
-    , left: this.state.left
-    , right: this.state.right
-    , fire: this.state.fire
-    , firealt: this.state.firealt
-    , jump: this.state.jump
-  })
+    return this.queue({
+        x_rotation_accum: this.state.x_rotation_accum,
+        y_rotation_accum: this.state.y_rotation_accum,
+        z_rotation_accum: this.state.z_rotation_accum,
+        forward: this.state.forward,
+        backward: this.state.backward,
+        left: this.state.left,
+        right: this.state.right,
+        fire: this.state.fire,
+        firealt: this.state.firealt,
+        jump: this.state.jump
+    })
 }
 
 proto.drain = function() {
-  var buf = this.buffer
-    , data
+    var buf = this.buffer,
+        data
 
-  while(buf.length && !this.paused) {
-    data = buf.shift()
-    if(null === data) {
-      return this.emit('end')
+    while (buf.length && !this.paused) {
+        data = buf.shift()
+        if (null === data) {
+            return this.emit('end')
+        }
+        this.emit('data', data)
     }
-    this.emit('data', data)
-  }
 }
 
 proto.resume = function() {
-  this.paused = false
-  this.drain()
+    this.paused = false
+    this.drain()
 
-  if(!this.paused) {
-    this.emit('drain')
-  }
-  return this
+    if (!this.paused) {
+        this.emit('drain')
+    }
+    return this
 }
 
 proto.pause = function() {
-  if(this.paused) return
+    if (this.paused) return
 
-  this.paused = true
-  this.emit('pause')
-  return this
+    this.paused = true
+    this.emit('pause')
+    return this
 }
 
 proto.queue = function(data) {
-  this.buffer.push(data)
-  this.drain()
-  return this
+    this.buffer.push(data)
+    this.drain()
+    return this
 }
 
 proto.acceleration = function(current, max) {
-  // max -> 0
-  var pct = (max - current) / max
-  return sin(PI/2*pct)
+    // max -> 0
+    var pct = (max - current) / max
+    return sin(PI / 2 * pct)
 }
 
 proto.target = function(target) {
-  if(target) {
-    this._target = target
-    this._yaw_target = target.yaw || target
-    this._pitch_target = target.pitch || target
-    this._roll_target = target.roll || target
-  }
-  return this._target
+    if (target) {
+        this._target = target
+        this._yaw_target = target.yaw || target
+        this._pitch_target = target.pitch || target
+        this._roll_target = target.roll || target
+    }
+    return this._target
 }
 
 proto.onfire = function(_) {
@@ -45149,10 +45178,9 @@ proto.onfire = function(_) {
 }
 
 function clamp(value, to) {
-  return isFinite(to) ? max(min(value, to), -to) : value
+    return isFinite(to) ? max(min(value, to), -to) : value
 }
-
-},{"stream":78}],38:[function(require,module,exports){
+},{"stream":80}],38:[function(require,module,exports){
 var THREE = require('three')
 
 module.exports = function(data, mesher, scaleFactor, three) {
@@ -45791,7 +45819,7 @@ function coordinates(spatial, box, regionWidth) {
  
   return emitter
 }
-},{"aabb-3d":13,"events":76}],42:[function(require,module,exports){
+},{"aabb-3d":13,"events":78}],42:[function(require,module,exports){
 var tic = require('tic')();
 var createAtlas = require('atlaspack');
 
@@ -46524,7 +46552,7 @@ View.prototype.appendTo = function(element) {
 
   this.resizeWindow(this.width,this.height)
 }
-},{"__browserify_process":85}],45:[function(require,module,exports){
+},{"__browserify_process":87}],45:[function(require,module,exports){
 var events = require('events')
 var inherits = require('inherits')
 
@@ -46661,7 +46689,7 @@ Chunker.prototype.voxelVector = function(pos) {
   return [vx, vy, vz]
 };
 
-},{"events":76,"inherits":16}],46:[function(require,module,exports){
+},{"events":78,"inherits":16}],46:[function(require,module,exports){
 var chunker = require('./chunker')
 
 module.exports = function(opts) {
@@ -47216,6 +47244,355 @@ if(exports) {
 }
 
 },{}],51:[function(require,module,exports){
+var noise = require('perlin').noise
+
+module.exports = function(seed, floor, ceiling, divisor) {
+  floor = floor || 0
+  ceiling = ceiling || 20 // minecraft's limit
+  divisor = divisor || 50
+  noise.seed(seed)
+  return function generateChunk(position, width) {
+    var startX = position[0] * width
+    var startY = position[1] * width
+    var startZ = position[2] * width
+    var chunk = new Int8Array(width * width * width)
+    pointsInside(startX, startZ, width, function(x, z) {
+      var n = noise.simplex2(x / divisor , z / divisor)
+      var y = ~~scale(n, -1, 1, floor, ceiling)
+      if (y === floor || startY < y && y < startY + width) {
+        var xidx = Math.abs((width + x % width) % width)
+        var yidx = Math.abs((width + y % width) % width)
+        var zidx = Math.abs((width + z % width) % width)
+        var idx = xidx + yidx * width + zidx * width * width
+        chunk[idx] = 1
+      }
+    })
+    return chunk
+  }
+}
+
+function pointsInside(startX, startY, width, func) {
+  for (var x = startX; x < startX + width; x++)
+    for (var y = startY; y < startY + width; y++)
+      func(x, y)
+}
+
+function scale( x, fromLow, fromHigh, toLow, toHigh ) {
+  return ( x - fromLow ) * ( toHigh - toLow ) / ( fromHigh - fromLow ) + toLow
+}
+;
+},{"perlin":52}],52:[function(require,module,exports){
+/*
+ * A speed-improved perlin and simplex noise algorithms for 2D.
+ *
+ * Based on example code by Stefan Gustavson (stegu@itn.liu.se).
+ * Optimisations by Peter Eastman (peastman@drizzle.stanford.edu).
+ * Better rank ordering method by Stefan Gustavson in 2012.
+ * Converted to Javascript by Joseph Gentle.
+ *
+ * Version 2012-03-09
+ *
+ * This code was placed in the public domain by its original author,
+ * Stefan Gustavson. You may use it as you see fit, but
+ * attribution is appreciated.
+ *
+ */
+
+(function(global){
+  var module = global.noise = {};
+
+  function Grad(x, y, z) {
+    this.x = x; this.y = y; this.z = z;
+  }
+  
+  Grad.prototype.dot2 = function(x, y) {
+    return this.x*x + this.y*y;
+  };
+
+  Grad.prototype.dot3 = function(x, y, z) {
+    return this.x*x + this.y*y + this.z*z;
+  };
+
+  var grad3 = [new Grad(1,1,0),new Grad(-1,1,0),new Grad(1,-1,0),new Grad(-1,-1,0),
+               new Grad(1,0,1),new Grad(-1,0,1),new Grad(1,0,-1),new Grad(-1,0,-1),
+               new Grad(0,1,1),new Grad(0,-1,1),new Grad(0,1,-1),new Grad(0,-1,-1)];
+
+  var p = [151,160,137,91,90,15,
+  131,13,201,95,96,53,194,233,7,225,140,36,103,30,69,142,8,99,37,240,21,10,23,
+  190, 6,148,247,120,234,75,0,26,197,62,94,252,219,203,117,35,11,32,57,177,33,
+  88,237,149,56,87,174,20,125,136,171,168, 68,175,74,165,71,134,139,48,27,166,
+  77,146,158,231,83,111,229,122,60,211,133,230,220,105,92,41,55,46,245,40,244,
+  102,143,54, 65,25,63,161, 1,216,80,73,209,76,132,187,208, 89,18,169,200,196,
+  135,130,116,188,159,86,164,100,109,198,173,186, 3,64,52,217,226,250,124,123,
+  5,202,38,147,118,126,255,82,85,212,207,206,59,227,47,16,58,17,182,189,28,42,
+  223,183,170,213,119,248,152, 2,44,154,163, 70,221,153,101,155,167, 43,172,9,
+  129,22,39,253, 19,98,108,110,79,113,224,232,178,185, 112,104,218,246,97,228,
+  251,34,242,193,238,210,144,12,191,179,162,241, 81,51,145,235,249,14,239,107,
+  49,192,214, 31,181,199,106,157,184, 84,204,176,115,121,50,45,127, 4,150,254,
+  138,236,205,93,222,114,67,29,24,72,243,141,128,195,78,66,215,61,156,180];
+  // To remove the need for index wrapping, double the permutation table length
+  var perm = new Array(512);
+  var gradP = new Array(512);
+
+  // This isn't a very good seeding function, but it works ok. It supports 2^16
+  // different seed values. Write something better if you need more seeds.
+  module.seed = function(seed) {
+    if(seed > 0 && seed < 1) {
+      // Scale the seed out
+      seed *= 65536;
+    }
+
+    seed = Math.floor(seed);
+    if(seed < 256) {
+      seed |= seed << 8;
+    }
+
+    for(var i = 0; i < 256; i++) {
+      var v;
+      if (i & 1) {
+        v = p[i] ^ (seed & 255);
+      } else {
+        v = p[i] ^ ((seed>>8) & 255);
+      }
+
+      perm[i] = perm[i + 256] = v;
+      gradP[i] = gradP[i + 256] = grad3[v % 12];
+    }
+  };
+
+  module.seed(0);
+
+  /*
+  for(var i=0; i<256; i++) {
+    perm[i] = perm[i + 256] = p[i];
+    gradP[i] = gradP[i + 256] = grad3[perm[i] % 12];
+  }*/
+
+  // Skewing and unskewing factors for 2, 3, and 4 dimensions
+  var F2 = 0.5*(Math.sqrt(3)-1);
+  var G2 = (3-Math.sqrt(3))/6;
+
+  var F3 = 1/3;
+  var G3 = 1/6;
+
+  // 2D simplex noise
+  module.simplex2 = function(xin, yin) {
+    var n0, n1, n2; // Noise contributions from the three corners
+    // Skew the input space to determine which simplex cell we're in
+    var s = (xin+yin)*F2; // Hairy factor for 2D
+    var i = Math.floor(xin+s);
+    var j = Math.floor(yin+s);
+    var t = (i+j)*G2;
+    var x0 = xin-i+t; // The x,y distances from the cell origin, unskewed.
+    var y0 = yin-j+t;
+    // For the 2D case, the simplex shape is an equilateral triangle.
+    // Determine which simplex we are in.
+    var i1, j1; // Offsets for second (middle) corner of simplex in (i,j) coords
+    if(x0>y0) { // lower triangle, XY order: (0,0)->(1,0)->(1,1)
+      i1=1; j1=0;
+    } else {    // upper triangle, YX order: (0,0)->(0,1)->(1,1)
+      i1=0; j1=1;
+    }
+    // A step of (1,0) in (i,j) means a step of (1-c,-c) in (x,y), and
+    // a step of (0,1) in (i,j) means a step of (-c,1-c) in (x,y), where
+    // c = (3-sqrt(3))/6
+    var x1 = x0 - i1 + G2; // Offsets for middle corner in (x,y) unskewed coords
+    var y1 = y0 - j1 + G2;
+    var x2 = x0 - 1 + 2 * G2; // Offsets for last corner in (x,y) unskewed coords
+    var y2 = y0 - 1 + 2 * G2;
+    // Work out the hashed gradient indices of the three simplex corners
+    i &= 255;
+    j &= 255;
+    var gi0 = gradP[i+perm[j]];
+    var gi1 = gradP[i+i1+perm[j+j1]];
+    var gi2 = gradP[i+1+perm[j+1]];
+    // Calculate the contribution from the three corners
+    var t0 = 0.5 - x0*x0-y0*y0;
+    if(t0<0) {
+      n0 = 0;
+    } else {
+      t0 *= t0;
+      n0 = t0 * t0 * gi0.dot2(x0, y0);  // (x,y) of grad3 used for 2D gradient
+    }
+    var t1 = 0.5 - x1*x1-y1*y1;
+    if(t1<0) {
+      n1 = 0;
+    } else {
+      t1 *= t1;
+      n1 = t1 * t1 * gi1.dot2(x1, y1);
+    }
+    var t2 = 0.5 - x2*x2-y2*y2;
+    if(t2<0) {
+      n2 = 0;
+    } else {
+      t2 *= t2;
+      n2 = t2 * t2 * gi2.dot2(x2, y2);
+    }
+    // Add contributions from each corner to get the final noise value.
+    // The result is scaled to return values in the interval [-1,1].
+    return 70 * (n0 + n1 + n2);
+  };
+
+  // 3D simplex noise
+  module.simplex3 = function(xin, yin, zin) {
+    var n0, n1, n2, n3; // Noise contributions from the four corners
+
+    // Skew the input space to determine which simplex cell we're in
+    var s = (xin+yin+zin)*F3; // Hairy factor for 2D
+    var i = Math.floor(xin+s);
+    var j = Math.floor(yin+s);
+    var k = Math.floor(zin+s);
+
+    var t = (i+j+k)*G3;
+    var x0 = xin-i+t; // The x,y distances from the cell origin, unskewed.
+    var y0 = yin-j+t;
+    var z0 = zin-k+t;
+
+    // For the 3D case, the simplex shape is a slightly irregular tetrahedron.
+    // Determine which simplex we are in.
+    var i1, j1, k1; // Offsets for second corner of simplex in (i,j,k) coords
+    var i2, j2, k2; // Offsets for third corner of simplex in (i,j,k) coords
+    if(x0 >= y0) {
+      if(y0 >= z0)      { i1=1; j1=0; k1=0; i2=1; j2=1; k2=0; }
+      else if(x0 >= z0) { i1=1; j1=0; k1=0; i2=1; j2=0; k2=1; }
+      else              { i1=0; j1=0; k1=1; i2=1; j2=0; k2=1; }
+    } else {
+      if(y0 < z0)      { i1=0; j1=0; k1=1; i2=0; j2=1; k2=1; }
+      else if(x0 < z0) { i1=0; j1=1; k1=0; i2=0; j2=1; k2=1; }
+      else             { i1=0; j1=1; k1=0; i2=1; j2=1; k2=0; }
+    }
+    // A step of (1,0,0) in (i,j,k) means a step of (1-c,-c,-c) in (x,y,z),
+    // a step of (0,1,0) in (i,j,k) means a step of (-c,1-c,-c) in (x,y,z), and
+    // a step of (0,0,1) in (i,j,k) means a step of (-c,-c,1-c) in (x,y,z), where
+    // c = 1/6.
+    var x1 = x0 - i1 + G3; // Offsets for second corner
+    var y1 = y0 - j1 + G3;
+    var z1 = z0 - k1 + G3;
+
+    var x2 = x0 - i2 + 2 * G3; // Offsets for third corner
+    var y2 = y0 - j2 + 2 * G3;
+    var z2 = z0 - k2 + 2 * G3;
+
+    var x3 = x0 - 1 + 3 * G3; // Offsets for fourth corner
+    var y3 = y0 - 1 + 3 * G3;
+    var z3 = z0 - 1 + 3 * G3;
+
+    // Work out the hashed gradient indices of the four simplex corners
+    i &= 255;
+    j &= 255;
+    k &= 255;
+    var gi0 = gradP[i+   perm[j+   perm[k   ]]];
+    var gi1 = gradP[i+i1+perm[j+j1+perm[k+k1]]];
+    var gi2 = gradP[i+i2+perm[j+j2+perm[k+k2]]];
+    var gi3 = gradP[i+ 1+perm[j+ 1+perm[k+ 1]]];
+
+    // Calculate the contribution from the four corners
+    var t0 = 0.5 - x0*x0-y0*y0-z0*z0;
+    if(t0<0) {
+      n0 = 0;
+    } else {
+      t0 *= t0;
+      n0 = t0 * t0 * gi0.dot3(x0, y0, z0);  // (x,y) of grad3 used for 2D gradient
+    }
+    var t1 = 0.5 - x1*x1-y1*y1-z1*z1;
+    if(t1<0) {
+      n1 = 0;
+    } else {
+      t1 *= t1;
+      n1 = t1 * t1 * gi1.dot3(x1, y1, z1);
+    }
+    var t2 = 0.5 - x2*x2-y2*y2-z2*z2;
+    if(t2<0) {
+      n2 = 0;
+    } else {
+      t2 *= t2;
+      n2 = t2 * t2 * gi2.dot3(x2, y2, z2);
+    }
+    var t3 = 0.5 - x3*x3-y3*y3-z3*z3;
+    if(t3<0) {
+      n3 = 0;
+    } else {
+      t3 *= t3;
+      n3 = t3 * t3 * gi3.dot3(x3, y3, z3);
+    }
+    // Add contributions from each corner to get the final noise value.
+    // The result is scaled to return values in the interval [-1,1].
+    return 32 * (n0 + n1 + n2 + n3);
+
+  };
+
+  // ##### Perlin noise stuff
+
+  function fade(t) {
+    return t*t*t*(t*(t*6-15)+10);
+  }
+
+  function lerp(a, b, t) {
+    return (1-t)*a + t*b;
+  }
+
+  // 2D Perlin Noise
+  module.perlin2 = function(x, y) {
+    // Find unit grid cell containing point
+    var X = Math.floor(x), Y = Math.floor(y);
+    // Get relative xy coordinates of point within that cell
+    x = x - X; y = y - Y;
+    // Wrap the integer cells at 255 (smaller integer period can be introduced here)
+    X = X & 255; Y = Y & 255;
+
+    // Calculate noise contributions from each of the four corners
+    var n00 = gradP[X+perm[Y]].dot2(x, y);
+    var n01 = gradP[X+perm[Y+1]].dot2(x, y-1);
+    var n10 = gradP[X+1+perm[Y]].dot2(x-1, y);
+    var n11 = gradP[X+1+perm[Y+1]].dot2(x-1, y-1);
+
+    // Compute the fade curve value for x
+    var u = fade(x);
+
+    // Interpolate the four results
+    return lerp(
+        lerp(n00, n10, u),
+        lerp(n01, n11, u),
+       fade(y));
+  };
+
+  // 3D Perlin Noise
+  module.perlin3 = function(x, y, z) {
+    // Find unit grid cell containing point
+    var X = Math.floor(x), Y = Math.floor(y), Z = Math.floor(z);
+    // Get relative xyz coordinates of point within that cell
+    x = x - X; y = y - Y; z = z - Z;
+    // Wrap the integer cells at 255 (smaller integer period can be introduced here)
+    X = X & 255; Y = Y & 255; Z = Z & 255;
+
+    // Calculate noise contributions from each of the eight corners
+    var n000 = gradP[X+  perm[Y+  perm[Z  ]]].dot3(x,   y,     z);
+    var n001 = gradP[X+  perm[Y+  perm[Z+1]]].dot3(x,   y,   z-1);
+    var n010 = gradP[X+  perm[Y+1+perm[Z  ]]].dot3(x,   y-1,   z);
+    var n011 = gradP[X+  perm[Y+1+perm[Z+1]]].dot3(x,   y-1, z-1);
+    var n100 = gradP[X+1+perm[Y+  perm[Z  ]]].dot3(x-1,   y,   z);
+    var n101 = gradP[X+1+perm[Y+  perm[Z+1]]].dot3(x-1,   y, z-1);
+    var n110 = gradP[X+1+perm[Y+1+perm[Z  ]]].dot3(x-1, y-1,   z);
+    var n111 = gradP[X+1+perm[Y+1+perm[Z+1]]].dot3(x-1, y-1, z-1);
+
+    // Compute the fade curve value for x, y, z
+    var u = fade(x);
+    var v = fade(y);
+    var w = fade(z);
+
+    // Interpolate
+    return lerp(
+        lerp(
+          lerp(n000, n100, u),
+          lerp(n001, n101, u), w),
+        lerp(
+          lerp(n010, n110, u),
+          lerp(n011, n111, u), w),
+       v);
+  };
+
+})(typeof module === "undefined" ? this : module.exports);
+},{}],53:[function(require,module,exports){
 var skin = require('minecraft-skin');
 
 module.exports = function(game) {
@@ -47304,7 +47681,7 @@ function parseXYZ(x, y, z) {
         z: Number(z)
     };
 }
-},{"minecraft-skin":52}],52:[function(require,module,exports){
+},{"minecraft-skin":54}],54:[function(require,module,exports){
 var THREE
 
 module.exports = function(three, image, sizeRatio) {
@@ -47676,7 +48053,7 @@ Skin.prototype.createPlayerObject = function(scene) {
   playerGroup.scale = this.scale
   return playerGroup
 }
-},{}],53:[function(require,module,exports){
+},{}],55:[function(require,module,exports){
 module.exports = function(game) {
   var THREE = game.THREE
     , EffectComposer = Composer.EffectComposer = require('three-effectcomposer')(THREE)
@@ -47745,7 +48122,7 @@ module.exports = function(game) {
   return composer
 };
 
-},{"three-effectcomposer":54}],54:[function(require,module,exports){
+},{"three-effectcomposer":56}],56:[function(require,module,exports){
 /**
  * @author alteredq / http://alteredqualia.com/
  */
@@ -47897,7 +48274,7 @@ module.exports = function(THREE) {
 
   return EffectComposer
 };
-},{"./lib/bloompass":55,"./lib/clearmaskpass":56,"./lib/convolutionshader":57,"./lib/filmpass":58,"./lib/filmshader":59,"./lib/maskpass":60,"./lib/renderpass":61,"./lib/shaderextras":62,"./lib/shaderpass":63,"three-copyshader":64}],55:[function(require,module,exports){
+},{"./lib/bloompass":57,"./lib/clearmaskpass":58,"./lib/convolutionshader":59,"./lib/filmpass":60,"./lib/filmshader":61,"./lib/maskpass":62,"./lib/renderpass":63,"./lib/shaderextras":64,"./lib/shaderpass":65,"three-copyshader":66}],57:[function(require,module,exports){
 /**
  * @author alteredq / http://alteredqualia.com/
  */
@@ -48012,7 +48389,7 @@ BloomPass.prototype = {
 
 }
 
-},{}],56:[function(require,module,exports){
+},{}],58:[function(require,module,exports){
 /**
  * @author alteredq / http://alteredqualia.com/
  */
@@ -48032,7 +48409,7 @@ module.exports = function(THREE) {
 
   return ClearMaskPass
 };
-},{}],57:[function(require,module,exports){
+},{}],59:[function(require,module,exports){
 /**
  * @author alteredq / http://alteredqualia.com/
  *
@@ -48138,7 +48515,7 @@ module.exports = function(THREE) {
 
 };
 
-},{}],58:[function(require,module,exports){
+},{}],60:[function(require,module,exports){
 /**
  * @author alteredq / http://alteredqualia.com/
  */
@@ -48197,7 +48574,7 @@ module.exports = function(THREE, EffectComposer) {
 
 	return FilmPass
 }
-},{}],59:[function(require,module,exports){
+},{}],61:[function(require,module,exports){
 /**
  * @author alteredq / http://alteredqualia.com/
  *
@@ -48303,7 +48680,7 @@ module.exports = {
 
 };
 
-},{}],60:[function(require,module,exports){
+},{}],62:[function(require,module,exports){
 /**
  * @author alteredq / http://alteredqualia.com/
  */
@@ -48376,7 +48753,7 @@ module.exports = function(THREE) {
   return MaskPass
 };
 
-},{}],61:[function(require,module,exports){
+},{}],63:[function(require,module,exports){
 /**
  * @author alteredq / http://alteredqualia.com/
  */
@@ -48435,7 +48812,7 @@ module.exports = function(THREE) {
 
 };
 
-},{}],62:[function(require,module,exports){
+},{}],64:[function(require,module,exports){
 /**
  * @author alteredq / http://alteredqualia.com/
  * @author zz85 / http://www.lab4games.net/zz85/blog
@@ -50221,7 +50598,7 @@ module.exports = function(THREE) {
 
 }
 
-},{}],63:[function(require,module,exports){
+},{}],65:[function(require,module,exports){
 /**
  * @author alteredq / http://alteredqualia.com/
  */
@@ -50279,7 +50656,7 @@ module.exports = function(THREE, EffectComposer) {
   return ShaderPass;
 
 };
-},{}],64:[function(require,module,exports){
+},{}],66:[function(require,module,exports){
 /**
  * @author alteredq / http://alteredqualia.com/
  *
@@ -50317,7 +50694,7 @@ module.exports = {
   ].join("\n")
 };
 
-},{}],65:[function(require,module,exports){
+},{}],67:[function(require,module,exports){
 var inherits = require('inherits');
 var lsb = require('lsb');
 var EventEmitter = require('events').EventEmitter;
@@ -50338,7 +50715,6 @@ function Vader(game, opts) {
     if (opts.size == undefined) opts.size = 5;
     if (opts.step == undefined) opts.step = opts.size / 5;
     if (opts.padding == undefined) opts.padding = parseInt(opts.size / 2);
-    if (opts.message == undefined) opts.message = 'wtf';
     if (opts.mats == undefined) opts.mats = [
         new game.THREE.MeshLambertMaterial({
             color: opts.clr[1],
@@ -50349,6 +50725,15 @@ function Vader(game, opts) {
             ambient: opts.amb[0]
         }),
     ];
+
+    var _mSpeed = .2;
+    var _mRot = .1;
+    this.xd = Math.random() * _mSpeed * 2 - _mSpeed;
+    this.yd = Math.random() * _mSpeed * 2 - _mSpeed;
+    this.zd = Math.random() * _mSpeed * 2 - _mSpeed;
+    this.xrd = Math.random() * _mRot * 2 - _mRot;
+    this.zrd = Math.random() * _mRot * 2 - _mRot;
+    this.yrd = Math.random() * _mRot * 2 - _mRot;
     this.size = opts.size;
     this.step = opts.step;
     this.padding = opts.padding;
@@ -50425,9 +50810,9 @@ function Vader(game, opts) {
             game.THREE.GeometryUtils.merge(mergedGeoBG, visibileArrBG[i]);
         }
     }
-    groups = [];
-    groups.push(new game.THREE.Mesh(mergedGeoBG, this.mats[0]));
-    groups.push(new game.THREE.Mesh(mergedGeo, this.mats[1]));
+    this.groups = [];
+    this.groups.push(new game.THREE.Mesh(mergedGeoBG, this.mats[0]));
+    this.groups.push(new game.THREE.Mesh(mergedGeo, this.mats[1]));
 
     var removeNonMerged = function(obj) {
         for (var i = 0; obj.children.length > i; i++) {
@@ -50441,21 +50826,112 @@ function Vader(game, opts) {
         }
     }
     removeNonMerged(vd);
-    for (var i = 0; i < groups.length; i++) {
-        vd.add(groups[i]);
+    for (var i = 0; i < this.groups.length; i++) {
+        vd.add(this.groups[i]);
     }
 
     var spaceVader = Creature.call(this, game, vd, {
         size: opts.size
     });
+
+    this.on('notice', function(player) {
+        this.lookAt(player);
+        this.move(((player.position.x - this.position.x) * 0.0005), ((player.position.y - this.position.y) * 0.0005), ((player.position.z - this.position.z) * 0.0005));
+    });
+
+    this.on('collide', function(player) {
+        console.log('collide');
+    });
+
+    this.notice(player, {
+        radius: 500
+    });
+
+    setInterval(function() {
+        if (this.noticed) return;
+        //creature.rotation.y += Math.random() * Math.PI / 2 - Math.PI / 4;
+        //creature.move(0, 0, 0.5 * Math.random());
+    }, 1000);
+
     return spaceVader;
 
 }
-},{"events":76,"inherits":66,"lsb":67,"voxel-creature":5}],66:[function(require,module,exports){
+
+Vader.prototype.Destroy = function(opts) {
+    if (!opts) opts = {};
+    //game.scene.remove(this.item.avatar);
+    this._events = null;
+    this.item = null;
+}
+
+Vader.prototype.Explode = function() {
+    var blockArr = [],
+        _vd = this;
+    this._events.notice = null;
+    this._events.collide = null;
+    this.move = null;
+    var showGeo = function(obj) {
+        for (var i = 0; obj.children.length > i; i++) {
+            if (obj.children != undefined && obj.children[i].children.length == 0 && obj.children[i].vaderT == 'hidden' && obj.children[i].visible == false) {
+                obj.children[i].visible = true;
+                obj.children[i].vaderT = "hidden";
+                blockArr.push(obj.children[i]);
+                showGeo(obj);
+            } else if (obj.children != undefined) {
+                showGeo(obj.children[i]);
+            }
+        }
+    }
+    showGeo(this.vaderObj);
+
+    for (var i = 0; i < this.groups.length; i++) {
+        this.groups[i].visible = false;
+    }
+    var _vObj = {
+        vaderObj: blockArr,
+        zd: this.zd,
+        yd: this.yd,
+        xd: this.xd,
+        xd: this.xd,
+        xrd: this.xrd,
+        yrd: this.yrd,
+        zrd: this.zrd
+    };
+
+    setTimeout(function() {
+        try {
+            game.scene.remove(_vd.item.avatar);
+            _vd.item = null;
+        } catch (e) {
+            //console.log(e);
+        }
+    }, 5000);
+    setInterval(function() {
+        for (var i = 0; _vObj.vaderObj.length > i; i++) {
+            //  var matrix = new game.THREE.Matrix4().getInverse(_vObj.vaderObj[i].matrixWorld);
+            // var vector = _vObj.vaderObj[i].position.getPositionFromMatrix(matrix);
+            /* _vObj.vaderObj[i].position.x = vector.x + _vObj.xd;
+            _vObj.vaderObj[i].position.y = vector.y + _vObj.yd;
+            _vObj.vaderObj[i].position.z = vector.z + _vObj.zd;*/
+            if (_vObj.vaderObj[i].visible == true) {
+                _vObj.vaderObj[i].visible = false;
+            } else {
+                _vObj.vaderObj[i].visible = true;
+            }
+            _vObj.vaderObj[i].position.x += _vObj.xd;
+            _vObj.vaderObj[i].position.y += _vObj.yd;
+            _vObj.vaderObj[i].position.z += _vObj.zd;
+            _vObj.vaderObj[i].rotation.x += _vObj.xrd;
+            _vObj.vaderObj[i].rotation.z += _vObj.zrd;
+            _vObj.vaderObj[i].rotation.y += _vObj.yrd;
+        }
+    }, 1000 / 60);
+}
+},{"events":78,"inherits":68,"lsb":69,"voxel-creature":5}],68:[function(require,module,exports){
 module.exports=require(4)
-},{}],67:[function(require,module,exports){
+},{}],69:[function(require,module,exports){
 module.exports=require(9)
-},{}],68:[function(require,module,exports){
+},{}],70:[function(require,module,exports){
 vertexShader =
     ["uniform sampler2D noiseTexture;",
     "uniform float noiseScale;",
@@ -51724,7 +52200,7 @@ Effect.prototype.exportToJSON = function(shaderCode) {
 
     return result;
 }
-},{}],69:[function(require,module,exports){
+},{}],71:[function(require,module,exports){
 
 
 //
@@ -51942,7 +52418,7 @@ if (typeof Object.getOwnPropertyDescriptor === 'function') {
   exports.getOwnPropertyDescriptor = valueObject;
 }
 
-},{}],70:[function(require,module,exports){
+},{}],72:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -52015,7 +52491,7 @@ function onend() {
   timers.setImmediate(shims.bind(this.end, this));
 }
 
-},{"_shims":69,"_stream_readable":72,"_stream_writable":74,"timers":80,"util":81}],71:[function(require,module,exports){
+},{"_shims":71,"_stream_readable":74,"_stream_writable":76,"timers":82,"util":83}],73:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -52058,7 +52534,7 @@ PassThrough.prototype._transform = function(chunk, encoding, cb) {
   cb(null, chunk);
 };
 
-},{"_stream_transform":73,"util":81}],72:[function(require,module,exports){
+},{"_stream_transform":75,"util":83}],74:[function(require,module,exports){
 var process=require("__browserify_process");// Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -52979,7 +53455,7 @@ function endReadable(stream) {
   }
 }
 
-},{"__browserify_process":85,"_shims":69,"buffer":83,"events":76,"stream":78,"string_decoder":79,"timers":80,"util":81}],73:[function(require,module,exports){
+},{"__browserify_process":87,"_shims":71,"buffer":85,"events":78,"stream":80,"string_decoder":81,"timers":82,"util":83}],75:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -53185,7 +53661,7 @@ function done(stream, er) {
   return stream.push(null);
 }
 
-},{"_stream_duplex":70,"util":81}],74:[function(require,module,exports){
+},{"_stream_duplex":72,"util":83}],76:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -53555,7 +54031,7 @@ function endWritable(stream, state, cb) {
   state.ended = true;
 }
 
-},{"buffer":83,"stream":78,"timers":80,"util":81}],75:[function(require,module,exports){
+},{"buffer":85,"stream":80,"timers":82,"util":83}],77:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -53872,7 +54348,7 @@ assert.doesNotThrow = function(block, /*optional*/message) {
 };
 
 assert.ifError = function(err) { if (err) {throw err;}};
-},{"_shims":69,"util":81}],76:[function(require,module,exports){
+},{"_shims":71,"util":83}],78:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -54153,7 +54629,7 @@ EventEmitter.listenerCount = function(emitter, type) {
     ret = emitter._events[type].length;
   return ret;
 };
-},{"util":81}],77:[function(require,module,exports){
+},{"util":83}],79:[function(require,module,exports){
 var process=require("__browserify_process");// Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -54364,7 +54840,7 @@ exports.extname = function(path) {
   return splitPath(path)[3];
 };
 
-},{"__browserify_process":85,"_shims":69,"util":81}],78:[function(require,module,exports){
+},{"__browserify_process":87,"_shims":71,"util":83}],80:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -54493,7 +54969,7 @@ Stream.prototype.pipe = function(dest, options) {
   return dest;
 };
 
-},{"_stream_duplex":70,"_stream_passthrough":71,"_stream_readable":72,"_stream_transform":73,"_stream_writable":74,"events":76,"util":81}],79:[function(require,module,exports){
+},{"_stream_duplex":72,"_stream_passthrough":73,"_stream_readable":74,"_stream_transform":75,"_stream_writable":76,"events":78,"util":83}],81:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -54686,7 +55162,7 @@ function base64DetectIncompleteChar(buffer) {
   return incomplete;
 }
 
-},{"buffer":83}],80:[function(require,module,exports){
+},{"buffer":85}],82:[function(require,module,exports){
 try {
     // Old IE browsers that do not curry arguments
     if (!setTimeout.call) {
@@ -54805,7 +55281,7 @@ if (!exports.setImmediate) {
   };
 }
 
-},{}],81:[function(require,module,exports){
+},{}],83:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -55350,7 +55826,7 @@ function hasOwnProperty(obj, prop) {
   return Object.prototype.hasOwnProperty.call(obj, prop);
 }
 
-},{"_shims":69}],82:[function(require,module,exports){
+},{"_shims":71}],84:[function(require,module,exports){
 exports.readIEEE754 = function(buffer, offset, isBE, mLen, nBytes) {
   var e, m,
       eLen = nBytes * 8 - mLen - 1,
@@ -55436,7 +55912,7 @@ exports.writeIEEE754 = function(buffer, value, offset, isBE, mLen, nBytes) {
   buffer[offset + i - d] |= s * 128;
 };
 
-},{}],83:[function(require,module,exports){
+},{}],85:[function(require,module,exports){
 var assert;
 exports.Buffer = Buffer;
 exports.SlowBuffer = Buffer;
@@ -56562,7 +57038,7 @@ Buffer.prototype.writeDoubleBE = function(value, offset, noAssert) {
   writeDouble(this, value, offset, true, noAssert);
 };
 
-},{"./buffer_ieee754":82,"assert":75,"base64-js":84}],84:[function(require,module,exports){
+},{"./buffer_ieee754":84,"assert":77,"base64-js":86}],86:[function(require,module,exports){
 (function (exports) {
 	'use strict';
 
@@ -56648,7 +57124,7 @@ Buffer.prototype.writeDoubleBE = function(value, offset, noAssert) {
 	module.exports.fromByteArray = uint8ToBase64;
 }());
 
-},{}],85:[function(require,module,exports){
+},{}],87:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};

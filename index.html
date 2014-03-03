@@ -49,26 +49,68 @@
     z-index: 9;
     display: none;
     }
+    #uiCanvas{
+        position: absolute;
+        top:0px;
+        z-index: 999;
+    }
     </style>
     <script type="text/javascript" src="scripts/tweenMax/src/minified/TimelineLite.min.js"></script>
     <script type="text/javascript" src="scripts/tweenMax/src/minified/easing/EasePack.min.js"></script>
     <script type="text/javascript" src="scripts/tweenMax/src/minified/TimelineMax.min.js"></script>
     <script type="text/javascript" src="scripts/tweenMax/src/minified/TweenMax.min.js"></script>
-    <script src="scripts/PreloadJS/lib/preloadjs-0.4.0.min.js"></script>
+    <script src="http://code.createjs.com/createjs-2013.09.25.combined.js"></script>
+    
 </head>
 <body>
     <div id="loader">
         <div id="loadingFill"></div>
     </div>
-    <img src="images/logoOmega.png" id="logo" class="unselectable"  />
+    <!-- <img src="images/logoOmega.png" id="logo" class="unselectable"  />
     <div id="container" style="float:left; width:100%; display:none"></div>
     <div id="phaser" style="float:left; width:100%; display:none"></div>
-    <img src="images/cockpit1a.svg" id="cockpit" class="unselectable" style="display:none" />
+    <img src="images/cockpit1a.svg" id="cockpit" class="unselectable" style="display:none" /> -->
+    <canvas id="uiCanvas" style="float:left; width:100%; " ></canvas>
+    <div id="container" style="float:left; width:100%; display:none"></div>
+    
     <script type="text/javascript">
     function startFracVader(){
-        $(function(){
+        window.onload = function(){
+            var  _width = window.innerWidth,
+            _height = window.innerHeight,
+            canvas = document.getElementById("uiCanvas");
+            canvas.style.height = _height + "px";
+            canvas.style.width = _width + "px";
+            stage = new createjs.Stage(canvas),
+            stage.width = stage.canvas.width = _width,
+            stage.height = stage.canvas.height = _height,
+            _stBounds = stage.getBounds();
+            img = new Image(),
+            img.src = "images/logoOmega.png";
+            img.onload = function(evt){
+                    logoBt = new createjs.Bitmap(evt.target);
+                    stage.addChild(logoBt);
+                    logoBt.scaleX = 0.8;
+                    logoBt.scaleY = 0.8;
+                    var lBounds = logoBt.getBounds();
+                    logoBt.x = (stage.width - (lBounds.width * 0.8))/2;
+                    logoBt.y = (stage.height - (lBounds.height * 0.8))/2;
+                    logoBt.alpha = 0;
+                    createjs.Tween.get(logoBt).to({alpha:1},400);
+                    logoBt.on('click',function(){
+                        createjs.Tween.get(logoBt).to({alpha:0},400);
+                        canvas.className = canvas.className + " unselectable";
+                        //startFracVaders()
+                    });
+            }
+            
             startFracIntro();
-        });
+            createjs.Ticker.addEventListener("tick", handleTick);
+            function handleTick(event) {
+              stage.update();
+            }
+        }
+           
     }
     var preload = new createjs.LoadQueue(false);
     preload.addEventListener("fileload", handleFileComplete);
