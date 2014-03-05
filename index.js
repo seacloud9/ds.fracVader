@@ -6,6 +6,7 @@ var createGame = require('voxel-engine'),
     hasGeneratedMod = false,
     cockpitView = true,
     bulletmovespeed = 0.05 * 5,
+    _delta = 0,
     _liveBogeys = [],
     _width = window.innerWidth,
     _height = window.innerHeight;
@@ -118,14 +119,58 @@ window.addEventListener('keydown', function(ev) {
 function initPostProcess() {
     /// postprocess rendering
     postprocessor = voxelpp(game);
-    var bS = new postprocessor.EffectComposer.BloomPass(9.25, 2, 0.0001, 1024);
-    var fS = new postprocessor.EffectComposer.FilmPass(0.35, 0.95, 2048, false);
-    fS.renderToScreen = true
+    //bS = new postprocessor.EffectComposer.BloomPass(9.25, 2, 0.0001, 1024);
+    bS = new postprocessor.EffectComposer.BloomPass(30.25, 10, 5, 1024);
     postprocessor.addPass(bS);
+    //var fS = new postprocessor.EffectComposer.FilmPass(0.35, 0.95, 2048, false);
+    //postprocessor.addPass(bS);
+    //fS.renderToScreen = true;
     postprocessor.addPass('ShaderPass', postprocessor.EffectComposer.ShaderExtras["screen"]);
 }
 
+ppReset = function() {
+    var sp = _delta * 0.006;
+    var kTarget = 2;
+    var sTarget = 0.0001;
+    var currentK = 10;
+    var currentS = 2;
+    var _pp = postprocessor;
+    var _defines = {};
+    var ppDeBlur = setInterval(function() {
+        if (currentK >= kTarget) {
+            currentK -= sp;
+            _defines = {
+                "KERNEL_SIZE_FLOAT": parseInt(currentK -= 0.2),
+                "KERNEL_SIZE_INT": parseInt(currentK -= 0.2)
+            };
+        } else {
+            _defines = {
+                "KERNEL_SIZE_FLOAT": parseInt(2),
+                "KERNEL_SIZE_INT": parseInt(2)
+            };
+            currentK = 2;
+        }
+        if (currentS >= sTarget) {
+            currentS -= sp;
+        } else {
+            currentS = 0.0001;
+        }
+        if (currentS == sTarget && currentK == kTarget) {
+            clearInterval(ppDeBlur);
+            _pp.passes[1] = new postprocessor.EffectComposer.BloomPass(9.25, 2, 0.0001, 1024);
+            delete ppDeBlur;
+            setupGUI();
+        } else {
+            _pp.passes[1].materialConvolution.defines = _defines;
+            _pp.passes[1].convolutionUniforms["cKernel"].value = _pp.EffectComposer.ConvolutionShader.buildKernel(currentS);
+            // _pp.passes[1] = new _pp.EffectComposer.BloomPass(9.25, parseInt(currentK), currentS, 1024);
+        }
 
+    }, 1000 / 60)
+
+
+
+}
 
 
 onWindowResize = function(event) {
@@ -140,6 +185,7 @@ window.addEventListener('resize', onWindowResize, false);
 
 startFracVaders = function() {
     generateVx();
+    setupUI();
     window.game.scene.remove(window.game.scene.__objects[1]);
     initPostProcess();
     canvasCallback = $.Callbacks();
@@ -173,9 +219,9 @@ startFracVaders = function() {
     game.view.renderer.setClearColor(0x000000, 1.0);
     game.on('postrender', function(dt) {
         window.game.starTunnel.tick(clock.getDelta() * 0.5);
+        bS.renderToScreen = true;
         window.game.view.renderer.clear();
         postprocessor.composer.render(0.01);
-
     });
     var hellcat = new Image();
     hellcat.onload = function() {
@@ -322,6 +368,7 @@ startFracIntro = function() {
         uniformsTunnelFS.time.value += 0.01;
         if (typeof _bullet != undefined) {
             var speed = delta * _bullet.speed;
+            _delta = delta;
             for (var i = _bullet.live.length - 1; i >= 0; i--) {
                 try {
                     var b = _bullet.live[i].mesh;

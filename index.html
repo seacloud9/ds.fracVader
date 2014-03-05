@@ -54,12 +54,18 @@
         top:0px;
         z-index: 999;
     }
+     @font-face {
+      font-family: 'airone';
+      src: url('fonts/aironeb.ttf') format('truetype');
+      font-weight: bold;
+      font-style: normal;
+  }
     </style>
     <script type="text/javascript" src="scripts/tweenMax/src/minified/TimelineLite.min.js"></script>
     <script type="text/javascript" src="scripts/tweenMax/src/minified/easing/EasePack.min.js"></script>
     <script type="text/javascript" src="scripts/tweenMax/src/minified/TimelineMax.min.js"></script>
     <script type="text/javascript" src="scripts/tweenMax/src/minified/TweenMax.min.js"></script>
-    <script src="http://code.createjs.com/createjs-2013.09.25.combined.js"></script>
+    <script src="http://code.createjs.com/createjs-2013.12.12.min.js"></script>
     
 </head>
 <body>
@@ -107,6 +113,7 @@
                 logoBt.on('click', function() {
                     logoBt.alpha = 0;
                     canvas.className = canvas.className + " unselectable";
+                    //sorry bro trixs are for kids...
                     //startFracVaders()
                 });
             }
