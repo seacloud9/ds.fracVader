@@ -7,8 +7,11 @@ var createGame = require('voxel-engine'),
     hasGeneratedMod = false,
     cockpitView = true,
     bulletmovespeed = 0.05 * 5,
+    _maxVaders = 3,
     _delta = 0,
+    _difficultyLvl = 1,
     _liveBogeys = [],
+    _isFirstScene = true,
     _width = window.innerWidth,
     _height = window.innerHeight;
 mouse = {
@@ -16,44 +19,56 @@ mouse = {
     y: 0
 };
 
+startGame = function() {
+    window.game = createGame({
+        chunkDistance: 2,
+        skyColor: 0x000000,
+        chunkSize: 4,
+        worldOrigin: [0, 0, 0],
+        generateChunks: false,
+        texturePath: 'textures/',
+        controls: {
+            discreteFire: false,
+            jump_max_speed: 0,
+            jump_speed: 0.004
+        },
+        materials: [
+            ['glass2'], 'brick', 'dirt', 'obsidian'
+        ],
+        keybindings: {
+            'W': 'forward',
+            'A': null,
+            'S': 'backward',
+            'D': null,
+            '<up>': 'forward',
+            '<left>': null,
+            '<down>': 'backward',
+            '<right>': null,
+            '<mouse 1>': 'fire',
+            '<mouse 3>': 'firealt',
+            '<space>': 'jump',
+            '<shift>': 'crouch',
+            '<control>': 'alt'
+        }
 
-window.game = createGame({
-    chunkDistance: 3,
-    skyColor: 0x000000,
-    chunkSize: 8,
-    worldOrigin: [0, 0, 0],
-    generateChunks: false,
-    texturePath: 'textures/',
-    controls: {
-        discreteFire: false,
-        jump_max_speed: 0,
-        jump_speed: 0.004
-    },
-    materials: [
-        ['glass2'], 'brick', 'dirt', 'obsidian'
-    ],
-    keybindings: {
-        'W': 'forward',
-        'A': null,
-        'S': 'backward',
-        'D': null,
-        '<up>': 'forward',
-        '<left>': null,
-        '<down>': 'backward',
-        '<right>': null,
-        '<mouse 1>': 'fire',
-        '<mouse 3>': 'firealt',
-        '<space>': 'jump',
-        '<shift>': 'crouch',
-        '<control>': 'alt'
-    }
+    });
+    window.game.view.renderer.autoClear = true;
+    game.tic = tic;
+    game.score = 0;
+    game.scene.fog.far = 2000;
+    game.gravity = [0, 0, 0];
+    game.paused = false;
+    var vaderBullet = require('voxel-bullet');
+    _bullet = vaderBullet(game)();
+    $('#container').html('');
+    game.appendTo('#container');
+};
 
-});
-
+startGame();
 
 function generateVx() {
     var perlinTerrain = require('voxel-perlin-terrain');
-    var terrainGenerator = perlinTerrain('foobar', 0, 5);
+    var terrainGenerator = perlinTerrain('foo', 0, 10, 20);
     game.voxels.on('missingChunk', function(chunkPosition) {
         var size = game.chunkSize
         var voxels = terrainGenerator(chunkPosition, size)
@@ -67,19 +82,34 @@ function generateVx() {
 }
 
 
+function getRandomNum(min, max) {
+    return Math.random() * (max - min) + min;
+}
 
-var critterCreator = require('voxel-critter')(game);
-var clock = new game.THREE.Clock();
-window.game.view.renderer.autoClear = true;
-game.tic = tic;
-//game.scene.fog.far = 90000;
-game.scene.fog.far = 2000;
-game.gravity = [0, 0, 0];
-game.paused = false
-game.appendTo('#container');
+restartScene = function() {
+    _initGame = false;
+    removeAllObjects();
+    game = null;
+    player = null;
+    startGame();
+    window.game.scene.fog.color = {
+        r: 0,
+        g: 0,
+        b: 0
+    };
+    setUpTick();
+    startFracVaders();
+    for (var i = 0; i < stage.children.length; i++) {
+        stage.removeChild(stage.children[i]);
+    }
+
+}
+
+
 document.addEventListener('mousemove', onDocumentMouseMove, false);
-var vaderBullet = require('voxel-bullet');
-_bullet = vaderBullet(game)();
+
+
+
 window.addEventListener('keydown', function(ev) {
     // /console.log(ev.keyCode);
     if (ev.keyCode === 'R'.charCodeAt(0)) {
@@ -96,12 +126,13 @@ window.addEventListener('keydown', function(ev) {
             player.currentCamera = player.avatar.cameraInside.children[1];
         }
     }
-    if (ev.keyCode == 87) {
-        var rP = new game.THREE.Vector3(mouse.x, mouse.y, 1);
-        var pro = new game.THREE.Projector();
-        pro.unprojectVector(rP, player.currentCamera);
-        var ray = new game.THREE.Ray(player.position, rP.sub(player.position).normalize());
-        player.avatar.translateY(0.5 * ray.direction.y)
+    if (ev.keyCode == 87 && _initGame == true) {
+        /*player.acceleration.z = -0.005;
+        var removeAcceration = setTimeout(function() {
+            player.acceleration.z = 0;
+            window.clearTimeout(removeAcceration);
+        }, 60);
+        */
     }
     if (ev.keyCode == 32) {
         ev.preventDefault();
@@ -160,7 +191,8 @@ ppReset = function() {
             clearInterval(ppDeBlur);
             _pp.passes[1] = new postprocessor.EffectComposer.BloomPass(9.25, 2, 0.0001, 1024);
             delete ppDeBlur;
-            setupGUI();
+
+            _gui = GUI();
         } else {
             _pp.passes[1].materialConvolution.defines = _defines;
             _pp.passes[1].convolutionUniforms["cKernel"].value = _pp.EffectComposer.ConvolutionShader.buildKernel(currentS);
@@ -185,9 +217,16 @@ onWindowResize = function(event) {
 window.addEventListener('resize', onWindowResize, false);
 
 startFracVaders = function() {
+    var critterCreator = require('voxel-critter')(game);
+    var clock = new game.THREE.Clock();
     generateVx();
     setupUI();
-    window.game.scene.remove(window.game.scene.__objects[1]);
+    if (_isFirstScene) {
+        console.log('hit');
+        window.game.scene.remove(window.game.scene.__objects[1]);
+        _isFirstScene = false;
+    }
+
     initPostProcess();
     canvasCallback = $.Callbacks();
     SPE = require('Shader-Particles')(game);
@@ -251,6 +290,7 @@ startFracVaders = function() {
         player.subjectTo([0, 0, 0]);
         hellcatMod.item.subjectTo([0, 0, 0]);
         player.avatar.name = "omegavader";
+        player.health = 100;
         //player.friction = new game.THREE.Vector3(1, 1, 10);
         //player.move([0,0,-0.000005]);
 
@@ -273,13 +313,17 @@ startFracVaders = function() {
 
 
         vv = require('voxel-vader');
-        _vv = vv(game)(game);
+        _vv = vv(game)(game, {
+            score: _Score
+        });
         _vv.message = 'c1';
         _vv.position.y = 10;
         _vv.position.x = 0;
         _vv.position.z = -50;
         _liveBogeys.push(_vv);
-        _vv2 = vv(game)(game);
+        _vv2 = vv(game)(game, {
+            score: _Score
+        });
         _vv2.message = 'c2';
         _vv2.position.y = 10;
         _vv2.position.x = 0;
@@ -288,8 +332,32 @@ startFracVaders = function() {
 
     }
     hellcat.src = 'images/hellcat2.png';
-
+    game._liveBogeys = _liveBogeys;
 };
+
+
+function spawnVV(spwnNum) {
+    for (var i = 0; i < _liveBogeys.length; i++) {
+        if (!_liveBogeys[i].noticed) {
+            _liveBogeys[i].Destroy();
+            _liveBogeys.splice(i, 1);
+        }
+    }
+    if (_liveBogeys.length <= _maxVaders) {
+        //console.log('spawning..');
+        for (var i = 0; i < spwnNum; i++) {
+            var _v = vv(game)(game, {
+                score: _Score
+            });
+            _v.message = 'c3';
+            _v.position.y = player.position.y + 10;
+            _v.position.x = getRandomNum((player.position.x - 100), (player.position.x + 100));
+            _v.position.z = player.position.z - 100;
+            _liveBogeys.push(_v);
+        }
+    }
+
+}
 
 
 function onDocumentMouseMove(e) {
@@ -298,6 +366,61 @@ function onDocumentMouseMove(e) {
     mouse.y = -(e.clientY / _height) * 2 + 1;
 }
 
+setUpTick = function() {
+    window.game.camera.position.z = 1;
+    window.game.camera.useQuaternion = true;
+    window.game.camera.far = 2000;
+    var pro = new game.THREE.Projector();
+    _maxVaders = _maxVaders * _difficultyLvl;
+    spwnVader = setInterval(function() {
+        if (_initGame) {
+            spawnVV(_difficultyLvl);
+        }
+    }, 5000);
+
+    game.on('tick', function(delta) {
+        uniformsTunnelFS.time.value += 0.01;
+        if (player != undefined && _initGame == true) {
+            _gui.update(game.score);
+            var rP = new game.THREE.Vector3(mouse.x, mouse.y, 1);
+            pro.unprojectVector(rP, player.currentCamera);
+            var ray = new game.THREE.Ray(player.position, rP.sub(player.position).normalize());
+            player.avatar.translateY(0.05 * ray.direction.y);
+            player.avatar.translateZ(0.15 * ray.direction.z);
+        }
+
+        if (typeof _bullet != undefined) {
+            var speed = delta * _bullet.speed;
+            _delta = delta;
+            for (var i = _bullet.live.length - 1; i >= 0; i--) {
+                try {
+                    var b = _bullet.live[i].mesh;
+                    var gcDist = b.position.distanceTo(game.camera.position);
+                    if (game.camera.far < gcDist) {
+                        _bullet.live.splice(b.id, 1);
+                        b.Destroy();
+                        game.scene.remove(b);
+                    }
+                    var p = b.position,
+                        d = b.ray.direction;
+                    b.translateX(speed * d.x);
+                    b.translateY(speed * d.y);
+                    b.translateZ(speed * d.z);
+                } catch (e) {
+                    break;
+                }
+            }
+        }
+
+        if (player != undefined && _initGame == true && player.health <= 0) {
+            _lives--;
+            _txtLives.text = "X " + _lives + ":";
+            player.health = 100;
+            healtHit(player.health / 100);
+        }
+
+    });
+}
 
 
 startFracIntro = function() {
@@ -309,7 +432,6 @@ startFracIntro = function() {
         g: 0,
         b: 0
     };
-    //game.view.renderer.setClearColor(0x000000, 1.0);
     uniforms = {
         time: {
             type: "f",
@@ -362,35 +484,24 @@ startFracIntro = function() {
     var mesh = new window.game.THREE.Mesh(new window.game.THREE.PlaneGeometry(2, 2), tunnelMat);
     mesh.name = "spacetunnel";
     window.game.scene.add(mesh);
-    window.game.camera.position.z = 1;
-    window.game.camera.useQuaternion = true;
-    window.game.camera.far = 2000;
-    game.on('tick', function(delta) {
-        uniformsTunnelFS.time.value += 0.01;
-        if (typeof _bullet != undefined) {
-            var speed = delta * _bullet.speed;
-            _delta = delta;
-            for (var i = _bullet.live.length - 1; i >= 0; i--) {
-                try {
-                    var b = _bullet.live[i].mesh;
-                    var gcDist = b.position.distanceTo(game.camera.position);
-                    if (game.camera.far < gcDist) {
-                        _bullet.live.splice(b.id, 1);
-                        b.Destroy();
-                        game.scene.remove(b);
-                    }
-                    var p = b.position,
-                        d = b.ray.direction;
-                    b.translateX(speed * d.x);
-                    b.translateY(speed * d.y);
-                    b.translateZ(speed * d.z);
-                } catch (e) {
-                    break;
-                }
-            }
-        }
 
-    });
+    setUpTick();
+}
+
+removeAllObjects = function() {
+    game.removeAllListeners();
+    clearInterval(spwnVader);
+    for (var i = 0; game._liveBogeys.length > i; i++) {
+        game._liveBogeys[i].Destroy();
+    }
+    var obj, i;
+    for (i = game.scene.children.length - 1; i >= 0; i--) {
+        obj = game.scene.children[i];
+        game.scene.remove(obj);
+    }
+    if (game.scene.children.length > 0) {
+        removeAllObjects()
+    }
 }
 },{"./scripts/shaders.js":70,"Shader-Particles":2,"voxel-bullet":3,"voxel-critter":7,"voxel-engine":10,"voxel-perlin-terrain":51,"voxel-player":53,"voxel-pp":55,"voxel-vader":67}],2:[function(require,module,exports){
 module.exports = function(game) {
@@ -1615,6 +1726,7 @@ Bullet.prototype.BuildBullets = function(opts, camera) {
     if (opts.radius === undefined) opts.radius = 50;
     if (opts.collisionRadius === undefined) opts.collisionRadius = 10;
     if (opts.interval === undefined) opts.interval = 1000;
+    if (opts.damage == undefined) this.damage = 5;
     if (opts.owner == undefined) this.owner = this.type[1];
     for (var i = 0; i < opts.count; i++) {
         this.local[i] = new game.THREE.Mesh(this.mesh, this.material);
@@ -1629,7 +1741,12 @@ Bullet.prototype.BuildBullets = function(opts, camera) {
             this.local[i].ray = ray;
         }
     } else {
-
+        //this.pro.unprojectVector(opts.rootVector, camera);
+        var ray = new game.THREE.Ray(opts.rootPosition, opts.rootVector.sub(opts.rootPosition).normalize());
+        for (var i = 0; i < opts.count; i++) {
+            this.local[i].ray = ray;
+        }
+        //console.log(this);
     }
     var events = require('events');
 
@@ -1639,6 +1756,8 @@ Bullet.prototype.BuildBullets = function(opts, camera) {
         _bT.collisionRadius = opts.collisionRadius;
         _bT.mesh = this.local[i];
         _bT.id = this.live.length;
+        _bT.owner = this.owner;
+        _bT.damage = this.damage;
         _bT._event = new events.EventEmitter();
         _bT._events = _bT._event._events;
         _bT.game = game;
@@ -1679,17 +1798,25 @@ Bullet.prototype.BuildBullets = function(opts, camera) {
         if (opts.target != undefined) {
             for (var x = 0; x < opts.target.length; x++) {
                 var cTarget = opts.target[x];
+                // console.log(cTarget);
                 _bT.notice(cTarget, {
                     radius: 500
                 });
                 _bT._event.on('collide', function(cTarget) {
                     try {
-                        console.log('collideX');
-                        cTarget.Explode();
+                        //console.log('collideX');
+                        if (!_bT.owner && _initGame) {
+                            //console.log(_bT.owner)
+                            player.health -= _bT.damage;
+                            healtHit(1.0 - (player.health / 100));
+                        }
                         game.scene.remove(_bT);
+                        game.score += cTarget.Explode();
                         delete cTarget;
                         delete _bT;
-                    } catch (e) {}
+                    } catch (e) {
+                        //console.log(e)
+                    }
 
                 });
             }
@@ -2547,7 +2674,7 @@ Game.prototype.collideTerrain = function(other, bbox, vec, resting) {
     var self = this
     var axes = ['x', 'y', 'z']
     var vec3 = [vec.x, vec.y, vec.z]
-    this.collideVoxels(bbox, vec3, function hit(axis, tile, coords, dir, edge) {
+    /*this.collideVoxels(bbox, vec3, function hit(axis, tile, coords, dir, edge) {
         if (!tile) return
         if (Math.abs(vec3[axis]) < Math.abs(edge)) return
         vec3[axis] = vec[axes[axis]] = edge
@@ -2555,7 +2682,7 @@ Game.prototype.collideTerrain = function(other, bbox, vec, resting) {
         resting[axes[axis]] = dir
         other.friction[axes[(axis + 1) % 3]] = other.friction[axes[(axis + 2) % 3]] = axis === 1 ? self.friction : 1
         return true
-    })
+    })*/
 }
 
 // # Three.js specific methods
@@ -50762,6 +50889,8 @@ function Vader(game, opts) {
     if (opts.size == undefined) opts.size = 5;
     if (opts.step == undefined) opts.step = opts.size / 5;
     if (opts.padding == undefined) opts.padding = parseInt(opts.size / 2);
+    if (opts.points == undefined) opts.points = 10;
+    if (opts.damage == undefined) opts.damage = 1;
     if (opts.mats == undefined) opts.mats = [
         new game.THREE.MeshLambertMaterial({
             color: opts.clr[1],
@@ -50772,6 +50901,8 @@ function Vader(game, opts) {
             ambient: opts.amb[0]
         }),
     ];
+    var vB = require('voxel-bullet');
+    this._vaderBullet = vB(game)();
 
     var _mSpeed = .2;
     var _mRot = .1;
@@ -50783,8 +50914,10 @@ function Vader(game, opts) {
     this.yrd = Math.random() * _mRot * 2 - _mRot;
     this.size = opts.size;
     this.step = opts.step;
+    this.points = opts.points;
     this.padding = opts.padding;
     this.mats = opts.mats;
+    this.damage = opts.damage;
 
     var createVader = function(mat) {
         return new game.THREE.Mesh(
@@ -50884,10 +51017,51 @@ function Vader(game, opts) {
     this.on('notice', function(player) {
         this.lookAt(player);
         this.move(((player.position.x - this.position.x) * 0.0005), ((player.position.y - this.position.y) * 0.0005), ((player.position.z - this.position.z) * 0.0005));
+        var rP = this.position;
+        var bArr = [new game.THREE.Vector3(rP.x, rP.y, rP.z)];
+        if (_initGame == true) {
+            this._vaderBullet.BuildBullets({
+                count: 1,
+                rootVector: player.position,
+                rootPosition: rP,
+                bulletPosition: bArr,
+                target: [player],
+                owner: 0
+            });
+        }
     });
 
     this.on('collide', function(player) {
-        console.log('collide');
+        if (_initGame == true) {
+            player.health -= this.damage;
+            healtHit(1.0 - (player.health / 100));
+        }
+    });
+
+    var _VD = this;
+    game.on('tick', function(delta) {
+        if (typeof _VD._vaderBullet != undefined && _initGame == true && _VD.item != null) {
+            var speed = delta * _VD._vaderBullet.speed;
+            _delta = delta;
+            for (var i = _VD._vaderBullet.live.length - 1; i >= 0; i--) {
+                try {
+                    var b = _VD._vaderBullet.live[i].mesh;
+                    var gcDist = b.position.distanceTo(game.camera.position);
+                    if (game.camera.far < gcDist) {
+                        _VD._vaderBullet.live.splice(b.id, 1);
+                        b.Destroy();
+                        game.scene.remove(b);
+                    }
+                    var p = b.position,
+                        d = b.ray.direction;
+                    b.translateX(speed * d.x);
+                    b.translateY(speed * d.y);
+                    b.translateZ(speed * d.z);
+                } catch (e) {
+                    break;
+                }
+            }
+        }
     });
 
     this.notice(player, {
@@ -50896,24 +51070,32 @@ function Vader(game, opts) {
 
     setInterval(function() {
         if (this.noticed) return;
-        //creature.rotation.y += Math.random() * Math.PI / 2 - Math.PI / 4;
-        //creature.move(0, 0, 0.5 * Math.random());
     }, 1000);
+
+
+
 
     return spaceVader;
 
 }
 
-Vader.prototype.Destroy = function(opts) {
-    if (!opts) opts = {};
-    //game.scene.remove(this.item.avatar);
-    this._events = null;
-    this.item = null;
+Vader.prototype.Destroy = function() {
+    try {
+        game.scene.remove(this.vaderObj);
+        this.removeAllListeners();
+        this.vaderObj.visible = false;
+        this._events.notice = null;
+        this._events.collide = null;
+
+    } catch (e) {
+        //console.log(e);
+    }
 }
 
 Vader.prototype.Explode = function() {
     var blockArr = [],
         _vd = this;
+    this.removeAllListeners();
     this._events.notice = null;
     this._events.collide = null;
     this.move = null;
@@ -50973,8 +51155,9 @@ Vader.prototype.Explode = function() {
             _vObj.vaderObj[i].rotation.y += _vObj.yrd;
         }
     }, 1000 / 60);
+    return this.points;
 }
-},{"events":78,"inherits":68,"lsb":69,"voxel-creature":5}],68:[function(require,module,exports){
+},{"events":78,"inherits":68,"lsb":69,"voxel-bullet":3,"voxel-creature":5}],68:[function(require,module,exports){
 module.exports=require(4)
 },{}],69:[function(require,module,exports){
 module.exports=require(9)

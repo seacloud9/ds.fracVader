@@ -6,8 +6,11 @@ var createGame = require('voxel-engine'),
     hasGeneratedMod = false,
     cockpitView = true,
     bulletmovespeed = 0.05 * 5,
+    _maxVaders = 3,
     _delta = 0,
+    _difficultyLvl = 1,
     _liveBogeys = [],
+    _isFirstScene = true,
     _width = window.innerWidth,
     _height = window.innerHeight;
 mouse = {
@@ -15,44 +18,56 @@ mouse = {
     y: 0
 };
 
+startGame = function() {
+    window.game = createGame({
+        chunkDistance: 2,
+        skyColor: 0x000000,
+        chunkSize: 4,
+        worldOrigin: [0, 0, 0],
+        generateChunks: false,
+        texturePath: 'textures/',
+        controls: {
+            discreteFire: false,
+            jump_max_speed: 0,
+            jump_speed: 0.004
+        },
+        materials: [
+            ['glass2'], 'brick', 'dirt', 'obsidian'
+        ],
+        keybindings: {
+            'W': 'forward',
+            'A': null,
+            'S': 'backward',
+            'D': null,
+            '<up>': 'forward',
+            '<left>': null,
+            '<down>': 'backward',
+            '<right>': null,
+            '<mouse 1>': 'fire',
+            '<mouse 3>': 'firealt',
+            '<space>': 'jump',
+            '<shift>': 'crouch',
+            '<control>': 'alt'
+        }
 
-window.game = createGame({
-    chunkDistance: 3,
-    skyColor: 0x000000,
-    chunkSize: 8,
-    worldOrigin: [0, 0, 0],
-    generateChunks: false,
-    texturePath: 'textures/',
-    controls: {
-        discreteFire: false,
-        jump_max_speed: 0,
-        jump_speed: 0.004
-    },
-    materials: [
-        ['glass2'], 'brick', 'dirt', 'obsidian'
-    ],
-    keybindings: {
-        'W': 'forward',
-        'A': null,
-        'S': 'backward',
-        'D': null,
-        '<up>': 'forward',
-        '<left>': null,
-        '<down>': 'backward',
-        '<right>': null,
-        '<mouse 1>': 'fire',
-        '<mouse 3>': 'firealt',
-        '<space>': 'jump',
-        '<shift>': 'crouch',
-        '<control>': 'alt'
-    }
+    });
+    window.game.view.renderer.autoClear = true;
+    game.tic = tic;
+    game.score = 0;
+    game.scene.fog.far = 2000;
+    game.gravity = [0, 0, 0];
+    game.paused = false;
+    var vaderBullet = require('voxel-bullet');
+    _bullet = vaderBullet(game)();
+    $('#container').html('');
+    game.appendTo('#container');
+};
 
-});
-
+startGame();
 
 function generateVx() {
     var perlinTerrain = require('voxel-perlin-terrain');
-    var terrainGenerator = perlinTerrain('foobar', 0, 5);
+    var terrainGenerator = perlinTerrain('foo', 0, 10, 20);
     game.voxels.on('missingChunk', function(chunkPosition) {
         var size = game.chunkSize
         var voxels = terrainGenerator(chunkPosition, size)
@@ -66,19 +81,34 @@ function generateVx() {
 }
 
 
+function getRandomNum(min, max) {
+    return Math.random() * (max - min) + min;
+}
 
-var critterCreator = require('voxel-critter')(game);
-var clock = new game.THREE.Clock();
-window.game.view.renderer.autoClear = true;
-game.tic = tic;
-//game.scene.fog.far = 90000;
-game.scene.fog.far = 2000;
-game.gravity = [0, 0, 0];
-game.paused = false
-game.appendTo('#container');
+restartScene = function() {
+    _initGame = false;
+    removeAllObjects();
+    game = null;
+    player = null;
+    startGame();
+    window.game.scene.fog.color = {
+        r: 0,
+        g: 0,
+        b: 0
+    };
+    setUpTick();
+    startFracVaders();
+    for (var i = 0; i < stage.children.length; i++) {
+        stage.removeChild(stage.children[i]);
+    }
+
+}
+
+
 document.addEventListener('mousemove', onDocumentMouseMove, false);
-var vaderBullet = require('voxel-bullet');
-_bullet = vaderBullet(game)();
+
+
+
 window.addEventListener('keydown', function(ev) {
     // /console.log(ev.keyCode);
     if (ev.keyCode === 'R'.charCodeAt(0)) {
@@ -95,12 +125,13 @@ window.addEventListener('keydown', function(ev) {
             player.currentCamera = player.avatar.cameraInside.children[1];
         }
     }
-    if (ev.keyCode == 87) {
-        var rP = new game.THREE.Vector3(mouse.x, mouse.y, 1);
-        var pro = new game.THREE.Projector();
-        pro.unprojectVector(rP, player.currentCamera);
-        var ray = new game.THREE.Ray(player.position, rP.sub(player.position).normalize());
-        player.avatar.translateY(0.5 * ray.direction.y)
+    if (ev.keyCode == 87 && _initGame == true) {
+        /*player.acceleration.z = -0.005;
+        var removeAcceration = setTimeout(function() {
+            player.acceleration.z = 0;
+            window.clearTimeout(removeAcceration);
+        }, 60);
+        */
     }
     if (ev.keyCode == 32) {
         ev.preventDefault();
@@ -159,7 +190,8 @@ ppReset = function() {
             clearInterval(ppDeBlur);
             _pp.passes[1] = new postprocessor.EffectComposer.BloomPass(9.25, 2, 0.0001, 1024);
             delete ppDeBlur;
-            setupGUI();
+
+            _gui = GUI();
         } else {
             _pp.passes[1].materialConvolution.defines = _defines;
             _pp.passes[1].convolutionUniforms["cKernel"].value = _pp.EffectComposer.ConvolutionShader.buildKernel(currentS);
@@ -184,9 +216,16 @@ onWindowResize = function(event) {
 window.addEventListener('resize', onWindowResize, false);
 
 startFracVaders = function() {
+    var critterCreator = require('voxel-critter')(game);
+    var clock = new game.THREE.Clock();
     generateVx();
     setupUI();
-    window.game.scene.remove(window.game.scene.__objects[1]);
+    if (_isFirstScene) {
+        console.log('hit');
+        window.game.scene.remove(window.game.scene.__objects[1]);
+        _isFirstScene = false;
+    }
+
     initPostProcess();
     canvasCallback = $.Callbacks();
     SPE = require('Shader-Particles')(game);
@@ -250,6 +289,7 @@ startFracVaders = function() {
         player.subjectTo([0, 0, 0]);
         hellcatMod.item.subjectTo([0, 0, 0]);
         player.avatar.name = "omegavader";
+        player.health = 100;
         //player.friction = new game.THREE.Vector3(1, 1, 10);
         //player.move([0,0,-0.000005]);
 
@@ -272,13 +312,17 @@ startFracVaders = function() {
 
 
         vv = require('voxel-vader');
-        _vv = vv(game)(game);
+        _vv = vv(game)(game, {
+            score: _Score
+        });
         _vv.message = 'c1';
         _vv.position.y = 10;
         _vv.position.x = 0;
         _vv.position.z = -50;
         _liveBogeys.push(_vv);
-        _vv2 = vv(game)(game);
+        _vv2 = vv(game)(game, {
+            score: _Score
+        });
         _vv2.message = 'c2';
         _vv2.position.y = 10;
         _vv2.position.x = 0;
@@ -287,8 +331,32 @@ startFracVaders = function() {
 
     }
     hellcat.src = 'images/hellcat2.png';
-
+    game._liveBogeys = _liveBogeys;
 };
+
+
+function spawnVV(spwnNum) {
+    for (var i = 0; i < _liveBogeys.length; i++) {
+        if (!_liveBogeys[i].noticed) {
+            _liveBogeys[i].Destroy();
+            _liveBogeys.splice(i, 1);
+        }
+    }
+    if (_liveBogeys.length <= _maxVaders) {
+        //console.log('spawning..');
+        for (var i = 0; i < spwnNum; i++) {
+            var _v = vv(game)(game, {
+                score: _Score
+            });
+            _v.message = 'c3';
+            _v.position.y = player.position.y + 10;
+            _v.position.x = getRandomNum((player.position.x - 100), (player.position.x + 100));
+            _v.position.z = player.position.z - 100;
+            _liveBogeys.push(_v);
+        }
+    }
+
+}
 
 
 function onDocumentMouseMove(e) {
@@ -297,6 +365,61 @@ function onDocumentMouseMove(e) {
     mouse.y = -(e.clientY / _height) * 2 + 1;
 }
 
+setUpTick = function() {
+    window.game.camera.position.z = 1;
+    window.game.camera.useQuaternion = true;
+    window.game.camera.far = 2000;
+    var pro = new game.THREE.Projector();
+    _maxVaders = _maxVaders * _difficultyLvl;
+    spwnVader = setInterval(function() {
+        if (_initGame) {
+            spawnVV(_difficultyLvl);
+        }
+    }, 5000);
+
+    game.on('tick', function(delta) {
+        uniformsTunnelFS.time.value += 0.01;
+        if (player != undefined && _initGame == true) {
+            _gui.update(game.score);
+            var rP = new game.THREE.Vector3(mouse.x, mouse.y, 1);
+            pro.unprojectVector(rP, player.currentCamera);
+            var ray = new game.THREE.Ray(player.position, rP.sub(player.position).normalize());
+            player.avatar.translateY(0.05 * ray.direction.y);
+            player.avatar.translateZ(0.15 * ray.direction.z);
+        }
+
+        if (typeof _bullet != undefined) {
+            var speed = delta * _bullet.speed;
+            _delta = delta;
+            for (var i = _bullet.live.length - 1; i >= 0; i--) {
+                try {
+                    var b = _bullet.live[i].mesh;
+                    var gcDist = b.position.distanceTo(game.camera.position);
+                    if (game.camera.far < gcDist) {
+                        _bullet.live.splice(b.id, 1);
+                        b.Destroy();
+                        game.scene.remove(b);
+                    }
+                    var p = b.position,
+                        d = b.ray.direction;
+                    b.translateX(speed * d.x);
+                    b.translateY(speed * d.y);
+                    b.translateZ(speed * d.z);
+                } catch (e) {
+                    break;
+                }
+            }
+        }
+
+        if (player != undefined && _initGame == true && player.health <= 0) {
+            _lives--;
+            _txtLives.text = "X " + _lives + ":";
+            player.health = 100;
+            healtHit(player.health / 100);
+        }
+
+    });
+}
 
 
 startFracIntro = function() {
@@ -308,7 +431,6 @@ startFracIntro = function() {
         g: 0,
         b: 0
     };
-    //game.view.renderer.setClearColor(0x000000, 1.0);
     uniforms = {
         time: {
             type: "f",
@@ -361,33 +483,22 @@ startFracIntro = function() {
     var mesh = new window.game.THREE.Mesh(new window.game.THREE.PlaneGeometry(2, 2), tunnelMat);
     mesh.name = "spacetunnel";
     window.game.scene.add(mesh);
-    window.game.camera.position.z = 1;
-    window.game.camera.useQuaternion = true;
-    window.game.camera.far = 2000;
-    game.on('tick', function(delta) {
-        uniformsTunnelFS.time.value += 0.01;
-        if (typeof _bullet != undefined) {
-            var speed = delta * _bullet.speed;
-            _delta = delta;
-            for (var i = _bullet.live.length - 1; i >= 0; i--) {
-                try {
-                    var b = _bullet.live[i].mesh;
-                    var gcDist = b.position.distanceTo(game.camera.position);
-                    if (game.camera.far < gcDist) {
-                        _bullet.live.splice(b.id, 1);
-                        b.Destroy();
-                        game.scene.remove(b);
-                    }
-                    var p = b.position,
-                        d = b.ray.direction;
-                    b.translateX(speed * d.x);
-                    b.translateY(speed * d.y);
-                    b.translateZ(speed * d.z);
-                } catch (e) {
-                    break;
-                }
-            }
-        }
 
-    });
+    setUpTick();
+}
+
+removeAllObjects = function() {
+    game.removeAllListeners();
+    clearInterval(spwnVader);
+    for (var i = 0; game._liveBogeys.length > i; i++) {
+        game._liveBogeys[i].Destroy();
+    }
+    var obj, i;
+    for (i = game.scene.children.length - 1; i >= 0; i--) {
+        obj = game.scene.children[i];
+        game.scene.remove(obj);
+    }
+    if (game.scene.children.length > 0) {
+        removeAllObjects()
+    }
 }

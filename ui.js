@@ -1,7 +1,9 @@
 var _Score = 0,
     _yOffset = 0,
     _xOffset = 5,
-    _introStartUp = [];
+    _introStartUp = [],
+    _lives = 3,
+    _initGame = false;
 
 function setupUI() {
     setupIntro();
@@ -23,17 +25,17 @@ function setupIntro() {
         _txtStart = new createjs.Text("Get Ready!", "bold 62px airone", "");
         _txtStart.color = "#00a7f7";
         _txtStart = widthAdjust(_txtStart);
-        _txtStart.y = (stage.height - _txtStart.getTransformedBounds().height) / 2;
+        //_txtStart.y = (stage.height - _txtStart.getTransformedBounds().height) / 2;
         _introStartUp.push(_txtStart);
         stage.addChild(_txtWelcome);
-        stage.addChild(_txtStart);
+        //stage.addChild(_txtStart);
 
         _txtInsturctions = new createjs.Text("W == Thrust / SpaceBar == Fire", "bold 52px airone", "");
         _txtInsturctions.color = "#ffffff";
         _txtInsturctions = widthAdjust(_txtInsturctions);
-        _txtInsturctions.y = ((stage.height - _txtInsturctions.getTransformedBounds().height) / 2) + 80;
+        //_txtInsturctions.y = ((stage.height - _txtInsturctions.getTransformedBounds().height) / 2) + 80;
         stage.addChild(_txtInsturctions);
-        _introStartUp.push(_txtInsturctions);
+
 
 
         _txtCountDown = new createjs.Text("5", "bold 400px airone", "");
@@ -42,18 +44,22 @@ function setupIntro() {
         _txtCountDown.y = (_txtWelcome.y - 20);
         stage.addChild(_txtCountDown);
         _introStartUp.push(_txtCountDown);
-
+        //_txtStart.y = (_txtInsturctions.y + 140);
+        _introStartUp.push(_txtInsturctions);
+        _txtStart.y = stage.height - 100;
+        stage.addChild(_txtStart);
+        _txtInsturctions.y = _txtCountDown.y + (_txtCountDown.getBounds().height + 40);
         var CountDown = setInterval(function() {
             if (parseInt(_txtCountDown.text) != 0) {
                 if (parseInt(_txtCountDown.text) == 4) {
                     _txtStart.text = "too Be.."
                     _txtStart = widthAdjust(_txtStart);
-                    _txtStart.y = (stage.height - _txtStart.getTransformedBounds().height) / 2;
+                    //_txtStart.y = (stage.height - _txtStart.getTransformedBounds().height) / 2;
                 }
                 if (parseInt(_txtCountDown.text) == 2) {
                     _txtStart.text = "Blasted"
                     _txtStart = widthAdjust(_txtStart);
-                    _txtStart.y = (stage.height - _txtStart.getTransformedBounds().height) / 2;
+                    //_txtStart.y = (stage.height - _txtStart.getTransformedBounds().height) / 2;
                 }
                 _txtCountDown.text = parseInt(_txtCountDown.text) - 1;
             } else {
@@ -105,11 +111,12 @@ function simpleFade(obj) {
 
 }
 
-function setupGUI() {
+function GUI() {
     for (var i = 0; i < _introStartUp.length; i++) {
         stage.removeChild(_introStartUp[i]);
         _introStartUp[i] = null;
     }
+    _initGame = true;
     var cimg = new Image();
     cimg.src = "images/cockpit.png";
     cimg.onload = function(evt) {
@@ -123,7 +130,7 @@ function setupGUI() {
         cpBounds = cockpit.getBounds();
         cockpit.x = (stage.width - (cpBounds.width * _cpScale)) / 2;
         cockpit.y = (stage.height - (cpBounds.height * _cpScale)) / 2;
-        var _txtScore = new createjs.Text("Score: " + _Score, "bold 20px airone", "");
+        _txtScore = new createjs.Text("Score: " + _Score, "bold 20px airone", "");
         _txtScore.color = "#00a7f7";
         _txtScore.x = 20;
         _txtScore.y = 20;
@@ -139,18 +146,59 @@ function setupGUI() {
             var sBounds = shipIco.getBounds();
             shipIco.x = (stage.width - 80)
             shipIco.y = 20;
-            _txtLives = new createjs.Text("X 3:", "bold 20px airone", "");
+            _txtLives = new createjs.Text("X " + _lives + ":", "bold 20px airone", "");
             _txtLives.color = "#ff1a00";
             _txtLives.shadow = new createjs.Shadow("#ff1a00", _xOffset, _yOffset, 10);
             _txtLives.x = (stage.width - 140);
             _txtLives.y = 35;
-            //shipIco.shadow = new createjs.Shadow("#ff1a00", randomXOffset, randomYOffset, 10);
+            HealthBar = new createjs.Shape();
+            DamageBar = new createjs.Shape();
+            var yLoc = _txtLives.y + 40;
+            HealthBar.graphics.beginStroke("#ff1a00").beginLinearGradientFill(["#00a7f7", "#0A2354"], [0, 1], 0, yLoc, 0, yLoc + 10).drawRect(_txtLives.x, yLoc, 100, 10);
+            var yLoc = _txtLives.y + 40;
+            DamageBar.yLoc = yLoc;
+            DamageBar.xLoc = _txtLives.x;
+            DamageBar.setBounds(DamageBar.xLoc, yLoc, 100, 10);
+            DamageBar.graphics.beginLinearGradientFill(["#ff3019", "#cf0404"], [0, 1], 0, yLoc, 0, yLoc + 10).drawRect(_txtLives.x, yLoc, 100, 10);
+
+            DamageBar.setTransform(0, 0, 0, 1);
+
+            //DamageBar.x = _txtLives.x;
+            //DamageBar.y = yLoc;
+            stage.addChild(HealthBar);
+            stage.addChild(DamageBar);
             stage.addChild(_txtLives);
 
         }
-
-
         stage.addChild(_txtScore);
+
+
     }
 
+
+    healtHit = function(scaleX) {
+        DamageBar.scaleX = scaleX;
+        DamageBar.setTransform(0, 0, scaleX, 1);
+        DamageBar.x = (DamageBar.xLoc - DamageBar.getTransformedBounds().x + (100 - DamageBar.getTransformedBounds().width));
+    }
+
+    this.updateLives = function() {
+        try {
+            _txtLives.text = "Score: " + score;
+        } catch (e) {
+
+        }
+
+    }
+
+    //var _sc = this._txtScore;
+    this.update = function(score) {
+        try {
+            _txtScore.text = "Score: " + score;
+        } catch (e) {
+
+        }
+
+    }
+    return this;
 }
